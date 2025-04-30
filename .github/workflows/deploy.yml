@@ -1,8 +1,7 @@
 permissions:
   contents: write
-  pages: write
 
-name: Build & Deploy to GitHub Pages
+name: Build & Publish to /docs
 
 on:
   push:
@@ -15,8 +14,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          persist-credentials: true
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
@@ -27,8 +28,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+      - name: Move build to docs/
+        run: |
+          rm -rf docs
+          mv build docs
+
+      - name: Commit & Push docs/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "chore: publish site to /docs" || echo "No changes to commit"
+          git push
