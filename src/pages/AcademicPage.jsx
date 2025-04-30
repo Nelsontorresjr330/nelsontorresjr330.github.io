@@ -7,15 +7,27 @@ export default function AcademicPage() {
       <ul className="space-y-6">
         <li>
           <h3 className="text-xl font-semibold">M.S. in Computer Science</h3>
-          <p className="text-gray-400">State University, 2022</p>
+          <p className="text-gray-400">Vanderbilt University, May 2024</p>
+          <p className="text-gray-400">3.74 GPA</p>
           <p className="mt-2">
-            Focus: Big Data Architectures & Machine Learning.
+            Notable Coursework : Artificial Intelligence, Machine Learning, Model-Based Development, Computer Networks, Parallel Programming, Web Based System Architecture
+          </p>
+          <p className="mt-2">
+            Notable Projects : Civilization Simulation in Python (CS5260 - Introduction to Artificial Intelligence), Image Processor for Android in Java (CS5253 - Parallel Programming)
           </p>
         </li>
         <li>
-          <h3 className="text-xl font-semibold">B.S. in Physics & Comp Engineering</h3>
-          <p className="text-gray-400">Tech Institute, 2020</p>
-          <p className="mt-2">Graduated with honors; specialized in software development.</p>
+          <h3 className="text-xl font-semibold">B.S. in Physics & Computer Engineering</h3>
+          <p className="text-gray-400">Middle Tennessee State University, Dec 2022</p>
+          <p className="text-gray-400">3.45 GPA</p>
+          <p className="mt-2">Computer Engineering & Applied Physics Double Major, Minor in French.          
+          </p>
+          <p className="mt-2">
+            Notable Coursework : Discrete Structures and Algorithms, Computer Architecture, Circuit Design, Microprocessor Design, Programming Language Design, Assembly and Computer Design
+          </p>
+          <p className="mt-2">
+            Notable Projects : Working simulated model of an 8-bit computer using logic gates in Logisim (CSCI 3240 - Computer Systems) 
+          </p>
         </li>
       </ul>
     </div>
