@@ -1,6 +1,7 @@
 {
   "name": "nelsontorresjr330.github.io",
   "version": "0.1.0",
+  "homepage": "https://nelsontorresjr330.github.io",
   "private": true,
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
