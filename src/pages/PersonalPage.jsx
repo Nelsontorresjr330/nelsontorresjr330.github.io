@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 
 const photos = [
-  '/InTree.JPG',
-  '/OnBeach.JPG',
-  '/InJungle.JPG'
+  '/PersonalImages/InTree.JPG',
+  '/PersonalImages/OnBeach.JPG',
+  '/PersonalImages/InJungle.JPG'
 ];
 
 export default function PersonalPage() {
