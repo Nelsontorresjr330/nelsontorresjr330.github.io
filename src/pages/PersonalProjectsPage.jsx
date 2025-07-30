@@ -27,7 +27,7 @@ export default function PersonalProjectsPage() {
           An AWS-powered all-in-one payroll and business finance web application integrating Stripe &amp; Plaid APIs built in React.
         </p>
         <a
-          href="/https://tspayclear.com/"
+          href="https://tspayclear.com/"
           className="text-blue-400 hover:underline mt-2 inline-block"
         >
           View PayClear
