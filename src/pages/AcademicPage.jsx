@@ -5,6 +5,17 @@ export default function AcademicPage() {
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <h2 className="text-3xl font-bold">Academic Background</h2>
 
+        <div className="bg-gray-800 rounded-lg p-6 shadow-md">
+        <h3 className="text-xl font-semibold">PhD in Computational and Data Sciences</h3>
+        <p className="text-gray-400 mt-1">Middle Tennessee State University</p>
+        <p className="mt-2">
+          <strong>Notable Coursework:</strong> Advanced Concepts in Computational Science, Research Seminar in Computational Science
+        </p>
+        <p className="mt-2">
+          <strong>Anticipated Field of Research:</strong> Artificial Intelligence, Machine Learning
+        </p>
+      </div>
+
       <div className="bg-gray-800 rounded-lg p-6 shadow-md">
         <h3 className="text-xl font-semibold">M.S. in Computer Science</h3>
         <p className="text-gray-400 mt-1">Vanderbilt University, May 2024 | GPA: 3.74</p>

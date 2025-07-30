@@ -5,7 +5,8 @@ export default function HomePage() {
   return (
     <div className="p-8 text-center">
       <h2 className="text-4xl font-bold mb-4">
-        Motivated Full-Stack Developer currently working as an SDE2 with Amazon Robotics
+        Motivated Software Developer currently working as an SDE3 with Amazon <br /> 
+        & Pursueing my PhD in Computational Science at MTSU.
       </h2>
 
       <Link to="/projects">
@@ -29,7 +30,7 @@ export default function HomePage() {
           to="/work"
           className="bg-gray-800 rounded-lg p-6 text-center shadow-md hover:bg-gray-700 transition"
         >
-          <p className="text-4xl font-bold">React · Python · AWS</p>
+          <p className="text-4xl font-bold">Java · Python · AWS</p>
           <p className="text-xl text-gray-400 mt-2">Top Technologies</p>
         </Link>
 

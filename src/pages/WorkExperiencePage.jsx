@@ -5,9 +5,18 @@ export default function WorkExperiencePage() {
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <h2 className="text-3xl font-bold">Work Experience</h2>
 
+        <div className="bg-gray-800 rounded-lg p-6 shadow-md">
+        <h3 className="text-xl font-semibold">Senior Software Developer (SDE3), Amazon</h3>
+        <p className="text-gray-400 mt-1">Jun 2025 – Present | Nashville, TN</p>
+        <p className="mt-2">
+          Working on developing an AI/ML Computer Vision based Ergonomics Evaluator for Amazon Associates.
+          Work involves data Java, AWS, AI/ML Frameworks (Python) and Computer Vision technologies.
+        </p>
+      </div>
+
       <div className="bg-gray-800 rounded-lg p-6 shadow-md">
         <h3 className="text-xl font-semibold">Software Developer 2, Amazon Robotics</h3>
-        <p className="text-gray-400 mt-1">Jun 2024 – Present | Nashville, TN</p>
+        <p className="text-gray-400 mt-1">Jun 2024 – Jun 2025 | Nashville, TN</p>
         <p className="mt-2">
           Working on developing a proprietary SCADA system for Amazon Warehouses.
           Work involves data ETLs, PLC programming, Python, AWS, SQL and usage of internal Amazon Development Tools for CI/CD & Source Control.
