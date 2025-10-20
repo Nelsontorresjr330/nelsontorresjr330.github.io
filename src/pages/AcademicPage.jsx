@@ -9,10 +9,10 @@ export default function AcademicPage() {
         <h3 className="text-xl font-semibold">PhD in Computational and Data Sciences</h3>
         <p className="text-gray-400 mt-1">Middle Tennessee State University</p>
         <p className="mt-2">
-          <strong>Notable Coursework:</strong> Advanced Concepts in Computational Science, Research Seminar in Computational Science
+          <strong>Research Advisor:</strong> Dr. Xin Yang
         </p>
         <p className="mt-2">
-          <strong>Anticipated Field of Research:</strong> Artificial Intelligence, Machine Learning
+          <strong>Research Focus:</strong> fMRI data analysis research, applying computational science methodologies to analyze and interpret functional magnetic resonance imaging data for neuroscience applications.
         </p>
       </div>
 

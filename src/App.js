@@ -9,6 +9,7 @@ import WorkExperiencePage from './pages/WorkExperiencePage';
 import PersonalProjectsPage from './pages/PersonalProjectsPage';
 import AcademicPage from './pages/AcademicPage';
 import PersonalPage from './pages/PersonalPage';
+import PublicationsPage from './pages/PublicationsPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route path="/work" element={<WorkExperiencePage />} />
             <Route path="/projects" element={<PersonalProjectsPage />} />
             <Route path="/academic" element={<AcademicPage />} />
+            <Route path="/publications" element={<PublicationsPage />} />
             <Route path="/personal" element={<PersonalPage />} />
           </Routes>
         </main>
