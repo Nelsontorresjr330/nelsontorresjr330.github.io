@@ -23,7 +23,7 @@ from scipy import sparse
 from scipy.sparse.linalg import eigsh
 from scipy.stats import norm as scipy_norm
 
-from nilearn.datasets import fetch_localizer_first_level, load_fsaverage
+from nilearn.datasets import fetch_localizer_first_level, load_fsaverage, load_fsaverage_data
 from nilearn.glm.first_level import FirstLevelModel
 from nilearn.surface import SurfaceImage
 from nilearn.surface.surface import get_data as get_surf_data
@@ -181,10 +181,11 @@ def main():
         print(f"    {cname}: {z_arr.shape}, peak z={np.nanmax(np.abs(z_arr)):.2f}")
 
     # ------------------------------------------------------------------
-    # Save inflated mesh for surface rendering in handler.py
+    # Save inflated mesh and sulcal depth for nilearn rendering in handler.py
     # ------------------------------------------------------------------
-    print("Saving inflated mesh coordinates and faces...")
-    inflated = load_fsaverage()["inflated"]
+    print("Saving inflated mesh coordinates, faces, and sulcal depth...")
+    fsavg     = load_fsaverage()
+    inflated  = fsavg["inflated"]
     _upload_npy(s3, args.bucket,
                 np.asarray(inflated.parts["left"].coordinates, dtype=np.float32),
                 "data/inflated_left_coords.npy")
@@ -197,6 +198,12 @@ def main():
     _upload_npy(s3, args.bucket,
                 np.asarray(inflated.parts["right"].faces, dtype=np.int32),
                 "data/inflated_right_faces.npy")
+
+    # Sulcal depth — background map for nilearn plot_surf_stat_map
+    sulc_img = load_fsaverage_data(mesh='fsaverage5', data_type='sulcal')
+    sulc_arr = get_surf_data(sulc_img).astype(np.float32)
+    _upload_npy(s3, args.bucket, sulc_arr[:n_left],  "data/sulc_left.npy")
+    _upload_npy(s3, args.bucket, sulc_arr[n_left:],  "data/sulc_right.npy")
 
     # ------------------------------------------------------------------
     # Upload to S3

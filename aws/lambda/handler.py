@@ -19,7 +19,6 @@ Three execution modes dispatched from lambda_handler:
     - If not yet: returns { ready: false }
 """
 
-import base64
 import io
 import json
 import os
@@ -28,7 +27,6 @@ import uuid
 import boto3
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy import sparse
 from scipy.stats import norm
@@ -68,6 +66,8 @@ def _load_all():
         "left_faces":   _load_npy("data/inflated_left_faces.npy"),
         "right_coords": _load_npy("data/inflated_right_coords.npy"),
         "right_faces":  _load_npy("data/inflated_right_faces.npy"),
+        "sulc_left":    _load_npy("data/sulc_left.npy"),
+        "sulc_right":   _load_npy("data/sulc_right.npy"),
     }
     contrasts = {
         "(left - right) button press": _load_npy("data/contrast_left_minus_right.npy"),
@@ -114,83 +114,92 @@ def contrast_zscore(X, Y, B, c) -> np.ndarray:
     return (c @ B) / np.sqrt(sigma2 * se_scale + 1e-12)
 
 def _zscore_summary(z, threshold, two_sided):
-    hist, edges = np.histogram(z, bins=60, range=(-8.0, 8.0))
+    zf = z[np.isfinite(z)]
+    hist, edges = np.histogram(zf, bins=60, range=(-8.0, 8.0))
     return {
-        "sig_positive": int(np.sum(z >  threshold)),
-        "sig_negative": int(np.sum(z < -threshold)) if two_sided else 0,
-        "peak_z":       float(np.max(np.abs(z))),
-        "mean_z":       float(np.mean(z)),
+        "sig_positive": int(np.sum(zf >  threshold)),
+        "sig_negative": int(np.sum(zf < -threshold)) if two_sided else 0,
+        "peak_z":       float(np.nanmax(np.abs(z))),
+        "mean_z":       float(np.nanmean(z)),
         "threshold":    float(threshold),
         "histogram": {"counts": hist.tolist(), "edges": np.round(edges, 3).tolist()},
     }
 
 
 # ---------------------------------------------------------------------------
-# Brain surface image rendering
+# Brain surface image rendering — uses nilearn for 1:1 match with local script
 # ---------------------------------------------------------------------------
 
-def _plot_hemi(ax, coords, faces, z_vals, vmax, azim):
-    face_vals = z_vals[faces].mean(axis=1)
-    surf = ax.plot_trisurf(
-        coords[:, 0], coords[:, 1], coords[:, 2],
-        triangles=faces, cmap='RdBu_r', shade=False, linewidth=0,
+from collections import namedtuple as _namedtuple
+_SurfMesh = _namedtuple('SurfMesh', ['coordinates', 'faces'])
+
+def _make_mesh(coords: np.ndarray, faces: np.ndarray) -> _SurfMesh:
+    return _SurfMesh(coordinates=coords.astype(np.float32), faces=faces.astype(np.int32))
+
+
+def _render_panel(surf_mesh, z_vals, sulc, hemi, vmax, threshold, title):
+    import matplotlib.pyplot as plt
+    from nilearn.plotting import plot_surf_stat_map
+    from PIL import Image as PILImage
+    fig = plot_surf_stat_map(
+        surf_mesh,
+        np.nan_to_num(z_vals, nan=0.0),
+        bg_map=sulc,
+        hemi=hemi,
+        view='lateral',
+        cmap='cold_hot',
+        vmax=vmax,
+        threshold=threshold,
+        colorbar=True,
+        title=title,
+        bg_on_data=True,
     )
-    surf.set_array(face_vals)
-    surf.set_clim(-vmax, vmax)
-    # azim=180 → lateral view of left hemi; azim=0 → lateral view of right hemi
-    ax.view_init(elev=0, azim=azim)
-    ax.set_axis_off()
-    return surf
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    from PIL import Image as PILImage
+    img = PILImage.open(buf)
+    img.load()
+    return img
 
 
-def _render_contrast_image(mesh, z_ols, z_reg, n_left, threshold, lam, cname):
-    coords_l = mesh["left_coords"].astype(np.float64)
-    faces_l  = mesh["left_faces"]
-    coords_r = mesh["right_coords"].astype(np.float64)
-    faces_r  = mesh["right_faces"]
+def _render_contrast_image(mesh, z_ols, z_reg, n_left, threshold, lam, cname) -> bytes:
+    gifti_l = _make_mesh(mesh["left_coords"],  mesh["left_faces"])
+    gifti_r = _make_mesh(mesh["right_coords"], mesh["right_faces"])
+    sulc_l  = mesh["sulc_left"]
+    sulc_r  = mesh["sulc_right"]
 
     z_ols_l, z_ols_r = z_ols[:n_left], z_ols[n_left:]
     z_reg_l, z_reg_r = z_reg[:n_left], z_reg[n_left:]
 
-    # "(left - right) button press" shows both hemispheres, matching the Python script
-    both_hemi = "(left - right)" in cname
-
-    vmax = float(min(max(np.abs(z_ols).max(), np.abs(z_reg).max()), 8.0))
+    vmax = float(min(max(np.nanmax(np.abs(z_ols)), np.nanmax(np.abs(z_reg))), 8.0))
     vmax = max(vmax, threshold + 0.5)
 
-    ncols = 4 if both_hemi else 2
-    fig   = plt.figure(figsize=(6 * ncols, 4.5), facecolor='#111827')
+    both_hemi = "(left - right)" in cname
 
+    panels = []
     if both_hemi:
-        titles = ['OLS  (left)', 'OLS  (right)', f'Reg λ={lam}  (left)', f'Reg λ={lam}  (right)']
-        data   = [(z_ols_l, coords_l, faces_l, 180),
-                  (z_ols_r, coords_r, faces_r, 0),
-                  (z_reg_l, coords_l, faces_l, 180),
-                  (z_reg_r, coords_r, faces_r, 0)]
+        panels.append(_render_panel(gifti_l, z_ols_l, sulc_l, 'left',  vmax, threshold, 'OLS (left)'))
+        panels.append(_render_panel(gifti_r, z_ols_r, sulc_r, 'right', vmax, threshold, 'OLS (right)'))
+        panels.append(_render_panel(gifti_l, z_reg_l, sulc_l, 'left',  vmax, threshold, f'Reg λ={lam} (left)'))
+        panels.append(_render_panel(gifti_r, z_reg_r, sulc_r, 'right', vmax, threshold, f'Reg λ={lam} (right)'))
     else:
-        titles = ['OLS', f'Regularized  λ={lam}']
-        data   = [(z_ols_l, coords_l, faces_l, 180),
-                  (z_reg_l, coords_l, faces_l, 180)]
+        panels.append(_render_panel(gifti_l, z_ols_l, sulc_l, 'left', vmax, threshold, 'OLS'))
+        panels.append(_render_panel(gifti_l, z_reg_l, sulc_l, 'left', vmax, threshold, f'Reg λ={lam}'))
 
-    last_surf = None
-    for col, (z_vals, coords, faces, azim) in enumerate(data):
-        ax = fig.add_subplot(1, ncols, col + 1, projection='3d')
-        ax.set_facecolor('#1f2937')
-        last_surf = _plot_hemi(ax, coords, faces, z_vals, vmax, azim)
-        ax.set_title(titles[col], color='white', fontsize=11, pad=6)
-
-    sm = plt.cm.ScalarMappable(cmap='RdBu_r', norm=plt.Normalize(-vmax, vmax))
-    sm.set_array([])
-    cbar = fig.colorbar(sm, ax=fig.axes, shrink=0.5, pad=0.02)
-    cbar.set_label('z-score', color='white', fontsize=9)
-    cbar.ax.yaxis.set_tick_params(color='white')
-    plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
-
-    fig.suptitle(cname, color='white', fontsize=12, fontweight='bold', y=1.01)
+    # Stitch panels horizontally into one image
+    from PIL import Image as PILImage
+    total_w = sum(p.width for p in panels)
+    max_h   = max(p.height for p in panels)
+    combined = PILImage.new('RGB', (total_w, max_h), (17, 24, 39))
+    x = 0
+    for p in panels:
+        combined.paste(p, (x, (max_h - p.height) // 2))
+        x += p.width
 
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=100, bbox_inches='tight', facecolor='#111827')
-    plt.close(fig)
+    combined.save(buf, format='PNG')
     buf.seek(0)
     return buf.read()
 

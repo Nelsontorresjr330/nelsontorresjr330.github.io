@@ -79,24 +79,17 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: laplacian-glm
-      Runtime: python3.11
-      Handler: handler.lambda_handler
+      PackageType: Image
+      Code:
+        ImageUri: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/laplacian-glm:latest'
       Role: !GetAtt LambdaRole.Arn
-      MemorySize: 1024
+      MemorySize: 2048
       Timeout: 120
       EphemeralStorage:
         Size: 2048
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
-      Code:
-        ZipFile: |
-          def lambda_handler(event, context):
-              return {
-                  'statusCode': 200,
-                  'headers': {'Access-Control-Allow-Origin': '*'},
-                  'body': '{"status": "placeholder — run aws/scripts/deploy_lambda.sh"}'
-              }
 
   # ---------------------------------------------------------------------------
   # API Gateway — HTTP API (v2) with CORS
