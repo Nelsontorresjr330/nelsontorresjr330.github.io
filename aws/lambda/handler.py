@@ -66,13 +66,21 @@ def _load_all():
     mesh   = {
         "left_coords":  _load_npy("data/inflated_left_coords.npy"),
         "left_faces":   _load_npy("data/inflated_left_faces.npy"),
+        "right_coords": _load_npy("data/inflated_right_coords.npy"),
+        "right_faces":  _load_npy("data/inflated_right_faces.npy"),
     }
     contrasts = {
         "(left - right) button press": _load_npy("data/contrast_left_minus_right.npy"),
         "audio - visual":              _load_npy("data/contrast_audio_minus_visual.npy"),
         "computation - sentences":     _load_npy("data/contrast_computation_minus_sentences.npy"),
     }
-    return X, Y, evals, evecs, n_left, L, mesh, contrasts
+    # Precomputed nilearn AR-corrected OLS z-maps (exact match to LaplacianPenalty.py)
+    ols_zmaps = {
+        "(left - right) button press": _load_npy("data/ols_z_left_minus_right_button_press.npy"),
+        "audio - visual":              _load_npy("data/ols_z_audio_minus_visual.npy"),
+        "computation - sentences":     _load_npy("data/ols_z_computation_minus_sentences.npy"),
+    }
+    return X, Y, evals, evecs, n_left, L, mesh, contrasts, ols_zmaps
 
 
 # ---------------------------------------------------------------------------
@@ -121,33 +129,55 @@ def _zscore_summary(z, threshold, two_sided):
 # Brain surface image rendering
 # ---------------------------------------------------------------------------
 
+def _plot_hemi(ax, coords, faces, z_vals, vmax, azim):
+    face_vals = z_vals[faces].mean(axis=1)
+    surf = ax.plot_trisurf(
+        coords[:, 0], coords[:, 1], coords[:, 2],
+        triangles=faces, cmap='RdBu_r', shade=False, linewidth=0,
+    )
+    surf.set_array(face_vals)
+    surf.set_clim(-vmax, vmax)
+    # azim=180 → lateral view of left hemi; azim=0 → lateral view of right hemi
+    ax.view_init(elev=0, azim=azim)
+    ax.set_axis_off()
+    return surf
+
+
 def _render_contrast_image(mesh, z_ols, z_reg, n_left, threshold, lam, cname):
     coords_l = mesh["left_coords"].astype(np.float64)
     faces_l  = mesh["left_faces"]
-    z_ols_l  = z_ols[:n_left]
-    z_reg_l  = z_reg[:n_left]
+    coords_r = mesh["right_coords"].astype(np.float64)
+    faces_r  = mesh["right_faces"]
 
-    vmax = float(min(max(np.abs(z_ols_l).max(), np.abs(z_reg_l).max()), 8.0))
+    z_ols_l, z_ols_r = z_ols[:n_left], z_ols[n_left:]
+    z_reg_l, z_reg_r = z_reg[:n_left], z_reg[n_left:]
+
+    # "(left - right) button press" shows both hemispheres, matching the Python script
+    both_hemi = "(left - right)" in cname
+
+    vmax = float(min(max(np.abs(z_ols).max(), np.abs(z_reg).max()), 8.0))
     vmax = max(vmax, threshold + 0.5)
 
-    fig = plt.figure(figsize=(12, 4.5), facecolor='#111827')
+    ncols = 4 if both_hemi else 2
+    fig   = plt.figure(figsize=(6 * ncols, 4.5), facecolor='#111827')
 
-    for col, (z_l, title) in enumerate([
-        (z_ols_l, 'OLS'),
-        (z_reg_l, f'Regularized  λ={lam}'),
-    ]):
-        ax = fig.add_subplot(1, 2, col + 1, projection='3d')
+    if both_hemi:
+        titles = ['OLS  (left)', 'OLS  (right)', f'Reg λ={lam}  (left)', f'Reg λ={lam}  (right)']
+        data   = [(z_ols_l, coords_l, faces_l, 180),
+                  (z_ols_r, coords_r, faces_r, 0),
+                  (z_reg_l, coords_l, faces_l, 180),
+                  (z_reg_r, coords_r, faces_r, 0)]
+    else:
+        titles = ['OLS', f'Regularized  λ={lam}']
+        data   = [(z_ols_l, coords_l, faces_l, 180),
+                  (z_reg_l, coords_l, faces_l, 180)]
+
+    last_surf = None
+    for col, (z_vals, coords, faces, azim) in enumerate(data):
+        ax = fig.add_subplot(1, ncols, col + 1, projection='3d')
         ax.set_facecolor('#1f2937')
-        face_vals = z_l[faces_l].mean(axis=1)
-        surf = ax.plot_trisurf(
-            coords_l[:, 0], coords_l[:, 1], coords_l[:, 2],
-            triangles=faces_l, cmap='RdBu_r', shade=False, linewidth=0,
-        )
-        surf.set_array(face_vals)
-        surf.set_clim(-vmax, vmax)
-        ax.view_init(elev=0, azim=90)
-        ax.set_axis_off()
-        ax.set_title(title, color='white', fontsize=11, pad=6)
+        last_surf = _plot_hemi(ax, coords, faces, z_vals, vmax, azim)
+        ax.set_title(titles[col], color='white', fontsize=11, pad=6)
 
     sm = plt.cm.ScalarMappable(cmap='RdBu_r', norm=plt.Normalize(-vmax, vmax))
     sm.set_array([])
@@ -178,7 +208,7 @@ def _handle_compute(body, context):
     cluster_threshold = int(body.get("cluster_threshold", 20))
     two_sided         = bool(body.get("two_sided", True))
 
-    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts = _load_all()
+    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts, ols_zmaps = _load_all()
     k     = min(k_requested, evals_full.shape[0])
     evals = evals_full[:k]
     evecs = evecs_full[:, :k]
@@ -195,7 +225,7 @@ def _handle_compute(body, context):
 
     contrast_results = {}
     for name, c in contrasts.items():
-        z_ols = contrast_zscore(X, Y, B_ols, c)
+        z_ols = ols_zmaps[name]
         z_reg = contrast_zscore(X, Y, B_reg, c)
         contrast_results[name] = {
             "ols": _zscore_summary(z_ols, threshold, two_sided),
@@ -247,18 +277,17 @@ def _handle_render_job(event):
     two_sided = bool(body.get("two_sided", True))
     threshold = float(norm.isf(p_val))
 
-    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts = _load_all()
+    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts, ols_zmaps = _load_all()
     k_requested = int(body.get("n_eigenvectors", 500))
     k     = min(k_requested, evals_full.shape[0])
     evals = evals_full[:k]
     evecs = evecs_full[:, :k]
 
-    B_ols = fit_ols(X, Y)
     B_reg = fit_regularized(X, Y, evals, evecs, lam)
 
     image_keys = {}
     for name, c in contrasts.items():
-        z_ols  = contrast_zscore(X, Y, B_ols, c)
+        z_ols  = ols_zmaps[name]
         z_reg  = contrast_zscore(X, Y, B_reg, c)
         png    = _render_contrast_image(mesh, z_ols, z_reg, n_left, threshold, lam, name)
         s3_key = f"renders/{job_id}/{name.replace(' ', '_').replace('/', '-')}.png"
