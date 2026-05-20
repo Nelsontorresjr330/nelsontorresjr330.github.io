@@ -41,7 +41,26 @@ pip install \
   --upgrade \
   --quiet \
   -t layer_pkg/python \
-  numpy scipy
+  numpy scipy matplotlib
+
+echo "==> Stripping tests, caches, and unused data to stay under 250 MB limit..."
+PY=layer_pkg/python
+# Remove test suites (largest savings)
+find "$PY" -type d -name "tests"    -exec rm -rf {} + 2>/dev/null || true
+find "$PY" -type d -name "test"     -exec rm -rf {} + 2>/dev/null || true
+find "$PY" -type d -name "testdata" -exec rm -rf {} + 2>/dev/null || true
+# Remove compiled bytecode
+find "$PY" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find "$PY" -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
+# Remove package metadata
+find "$PY" -type d \( -name "*.dist-info" -o -name "*.egg-info" \) -exec rm -rf {} + 2>/dev/null || true
+# Remove matplotlib sample data and most fonts (keep one font for labels)
+rm -rf "$PY"/matplotlib/mpl-data/sample_data
+find "$PY"/matplotlib/mpl-data/fonts -type f ! -name "DejaVuSans.ttf" -delete 2>/dev/null || true
+# Remove scipy fft and signal test binaries
+find "$PY"/scipy -name "*.so" -path "*/tests/*" -delete 2>/dev/null || true
+STRIPPED=$(du -sh layer_pkg | cut -f1)
+echo "    Stripped size: $STRIPPED"
 
 echo "==> Zipping layer..."
 cd layer_pkg && zip -r ../numpy-scipy-layer.zip python --quiet && cd ..

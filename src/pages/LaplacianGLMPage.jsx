@@ -130,11 +130,27 @@ function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel }) {
 // Contrast result row
 // ---------------------------------------------------------------------------
 
-function ContrastRow({ name, result }) {
+function ContrastRow({ name, result, image }) {
   const { ols, reg } = result;
   return (
-    <div className="bg-gray-700 rounded-lg p-4 space-y-2">
+    <div className="bg-gray-700 rounded-lg p-4 space-y-3">
       <h4 className="font-semibold text-gray-100">{name}</h4>
+
+      {/* Brain surface image — OLS left, Regularized right */}
+      {image && (
+        <img
+          src={`data:image/png;base64,${image}`}
+          alt={`Brain surface: ${name}`}
+          className="w-full rounded"
+        />
+      )}
+      {!image && (
+        <div className="h-24 flex items-center justify-center text-gray-500 text-sm bg-gray-800 rounded">
+          Brain image not available
+        </div>
+      )}
+
+      {/* Stats table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead>
@@ -399,7 +415,12 @@ export default function LaplacianGLMPage() {
                   </span>
                 </h3>
                 {Object.entries(results.contrasts).map(([name, result]) => (
-                  <ContrastRow key={name} name={name} result={result} />
+                  <ContrastRow
+                    key={name}
+                    name={name}
+                    result={result}
+                    image={results.images?.[name]}
+                  />
                 ))}
               </div>
             </>

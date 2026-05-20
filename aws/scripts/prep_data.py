@@ -162,6 +162,24 @@ def main():
     c_computation_minus_sentences = basic["computation"] - basic["sentences"]
 
     # ------------------------------------------------------------------
+    # Save inflated mesh for surface rendering in handler.py
+    # ------------------------------------------------------------------
+    print("Saving inflated mesh coordinates and faces...")
+    inflated = load_fsaverage()["inflated"]
+    _upload_npy(s3, args.bucket,
+                np.asarray(inflated.parts["left"].coordinates, dtype=np.float32),
+                "data/inflated_left_coords.npy")
+    _upload_npy(s3, args.bucket,
+                np.asarray(inflated.parts["left"].faces, dtype=np.int32),
+                "data/inflated_left_faces.npy")
+    _upload_npy(s3, args.bucket,
+                np.asarray(inflated.parts["right"].coordinates, dtype=np.float32),
+                "data/inflated_right_coords.npy")
+    _upload_npy(s3, args.bucket,
+                np.asarray(inflated.parts["right"].faces, dtype=np.int32),
+                "data/inflated_right_faces.npy")
+
+    # ------------------------------------------------------------------
     # Upload to S3
     # ------------------------------------------------------------------
     print(f"\nUploading to s3://{args.bucket}/data/ ...")

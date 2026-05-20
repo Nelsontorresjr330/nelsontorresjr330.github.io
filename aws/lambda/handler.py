@@ -1,41 +1,32 @@
 """
 Lambda handler for the Laplacian-regularized GLM simulation.
 
-Cold start: downloads X, Y, evals, evecs, L, and contrast vectors from S3
-into /tmp and caches them for subsequent warm invocations.
+Cold start: downloads X, Y, evals, evecs, L, mesh, and contrast vectors from S3
+into the module-level cache for subsequent warm invocations.
 
 POST /run  body (all fields optional — defaults match LaplacianPenalty.py):
 {
   "lambda":            0.1,
   "lambda_sweep":      [0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0],
-  "n_eigenvectors":    500,   // subset of precomputed basis; must be <= 500
+  "n_eigenvectors":    500,
   "p_val":             0.001,
   "cluster_threshold": 20,
   "two_sided":         true
 }
 
-Response:
-{
-  "sweep":    { "lambdas": [...], "mse": [...], "roughness": [...] },
-  "selected": { "lambda": 0.1, "n_eigenvectors": 500,
-                "mse_ols": ..., "mse_reg": ...,
-                "roughness_ols": ..., "roughness_reg": ... },
-  "contrasts": {
-    "<name>": {
-      "ols": { "sig_positive": int, "sig_negative": int, "peak_z": float,
-               "mean_z": float, "threshold": float,
-               "histogram": { "counts": [...], "edges": [...] } },
-      "reg": { ... }
-    }
-  }
-}
+Response adds an "images" key with base64-encoded PNG brain surface plots
+(left hemisphere, lateral view) for each contrast, comparing OLS vs regularized.
 """
 
+import base64
 import io
 import json
 import os
 
 import boto3
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy import sparse
 from scipy.stats import norm
@@ -46,7 +37,7 @@ _cache: dict = {}
 
 
 # ---------------------------------------------------------------------------
-# S3 helpers — results cached in module-level dict across warm invocations
+# S3 helpers
 # ---------------------------------------------------------------------------
 
 def _s3_bytes(key: str) -> bytes:
@@ -72,12 +63,18 @@ def _load_all():
     evecs  = _load_npy("data/evecs.npy")
     n_left = int(_load_npy("data/n_left.npy"))
     L      = _load_npz("data/L.npz")
+    mesh = {
+        "left_coords": _load_npy("data/inflated_left_coords.npy"),
+        "left_faces":  _load_npy("data/inflated_left_faces.npy"),
+        "right_coords": _load_npy("data/inflated_right_coords.npy"),
+        "right_faces":  _load_npy("data/inflated_right_faces.npy"),
+    }
     contrasts = {
         "(left - right) button press": _load_npy("data/contrast_left_minus_right.npy"),
         "audio - visual":              _load_npy("data/contrast_audio_minus_visual.npy"),
         "computation - sentences":     _load_npy("data/contrast_computation_minus_sentences.npy"),
     }
-    return X, Y, evals, evecs, n_left, L, contrasts
+    return X, Y, evals, evecs, n_left, L, mesh, contrasts
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +117,77 @@ def contrast_zscore(X, Y, B, c) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Brain surface image rendering
+# ---------------------------------------------------------------------------
+
+def _render_contrast_image(mesh, z_ols, z_reg, n_left, threshold, lam, cname):
+    """
+    Render a side-by-side brain surface comparison: OLS (left) vs Regularized (right).
+    Shows left hemisphere lateral view, colored by z-score.
+    Returns a base64-encoded PNG string.
+    """
+    coords_l = mesh["left_coords"].astype(np.float64)
+    faces_l  = mesh["left_faces"]
+
+    z_ols_l = z_ols[:n_left]
+    z_reg_l = z_reg[:n_left]
+
+    vmax = float(min(max(np.abs(z_ols_l).max(), np.abs(z_reg_l).max()), 8.0))
+    vmax = max(vmax, threshold + 0.5)
+
+    fig = plt.figure(figsize=(13, 5), facecolor='#111827')
+
+    for col, (z_l, title) in enumerate([
+        (z_ols_l, 'OLS'),
+        (z_reg_l, f'Regularized  λ={lam}'),
+    ]):
+        ax = fig.add_subplot(1, 2, col + 1, projection='3d')
+        ax.set_facecolor('#1f2937')
+
+        # Per-face color: mean of the 3 vertex z-scores per triangle
+        face_vals = z_l[faces_l].mean(axis=1)
+
+        surf = ax.plot_trisurf(
+            coords_l[:, 0], coords_l[:, 1], coords_l[:, 2],
+            triangles=faces_l,
+            cmap='RdBu_r',
+            shade=False,
+            linewidth=0,
+        )
+        surf.set_array(face_vals)
+        surf.set_clim(-vmax, vmax)
+
+        # Left hemisphere lateral view
+        ax.view_init(elev=0, azim=90)
+        ax.set_axis_off()
+        ax.set_title(title, color='white', fontsize=12, pad=8)
+
+    # Shared colorbar
+    sm = plt.cm.ScalarMappable(
+        cmap='RdBu_r', norm=plt.Normalize(-vmax, vmax)
+    )
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=fig.axes, shrink=0.55, pad=0.02)
+    cbar.set_label('z-score', color='white', fontsize=10)
+    cbar.ax.yaxis.set_tick_params(color='white')
+    plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
+    # Dashed lines at ±threshold
+    norm_t  = (threshold + vmax) / (2 * vmax)
+    norm_nt = (-threshold + vmax) / (2 * vmax)
+    cbar.ax.axhline(y=norm_t,  xmin=0, xmax=1, color='#facc15', lw=1.5, ls='--')
+    cbar.ax.axhline(y=norm_nt, xmin=0, xmax=1, color='#facc15', lw=1.5, ls='--')
+
+    fig.suptitle(cname, color='white', fontsize=13, fontweight='bold', y=1.01)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=110, bbox_inches='tight',
+                facecolor='#111827')
+    plt.close(fig)
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
+
+
+# ---------------------------------------------------------------------------
 # Summary helpers
 # ---------------------------------------------------------------------------
 
@@ -154,7 +222,7 @@ def lambda_handler(event, context):
         cluster_threshold = int(body.get("cluster_threshold", 20))
         two_sided         = bool(body.get("two_sided", True))
 
-        X, Y, evals_full, evecs_full, n_left, L, contrasts = _load_all()
+        X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts = _load_all()
 
         k     = min(k_requested, evals_full.shape[0])
         evals = evals_full[:k]
@@ -173,8 +241,9 @@ def lambda_handler(event, context):
         B_ols = fit_ols(X, Y)
         B_reg = fit_regularized(X, Y, evals, evecs, lam)
 
-        # Contrast maps
+        # Contrast maps + images
         contrast_results = {}
+        images = {}
         for name, c in contrasts.items():
             z_ols = contrast_zscore(X, Y, B_ols, c)
             z_reg = contrast_zscore(X, Y, B_reg, c)
@@ -182,6 +251,9 @@ def lambda_handler(event, context):
                 "ols": _zscore_summary(z_ols, threshold, two_sided),
                 "reg": _zscore_summary(z_reg, threshold, two_sided),
             }
+            images[name] = _render_contrast_image(
+                mesh, z_ols, z_reg, n_left, threshold, lam, name
+            )
 
         return {
             "statusCode": 200,
@@ -204,6 +276,7 @@ def lambda_handler(event, context):
                     "roughness_reg":  roughness(B_reg, L),
                 },
                 "contrasts": contrast_results,
+                "images":    images,
             }),
         }
 
