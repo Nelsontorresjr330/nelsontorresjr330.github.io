@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ReferenceLine, ResponsiveContainer,
+  Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 
 // Set REACT_APP_GLM_API_URL in a .env file after CloudFormation deploys.
