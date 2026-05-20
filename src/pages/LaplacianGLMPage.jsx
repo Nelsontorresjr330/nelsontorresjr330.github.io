@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 
-// Set REACT_APP_GLM_API_URL in a .env file after CloudFormation deploys.
-// e.g.  REACT_APP_GLM_API_URL=https://xxxx.execute-api.us-east-1.amazonaws.com/run
-const API_URL = process.env.REACT_APP_GLM_API_URL || '';
+// Base URL — no trailing slash, no path.
+// e.g.  REACT_APP_GLM_API_URL=https://xxxx.execute-api.us-east-1.amazonaws.com
+const API_BASE = (process.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 
 const DEFAULT_PARAMS = {
   lambda:           0.1,
@@ -130,23 +130,25 @@ function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel }) {
 // Contrast result row
 // ---------------------------------------------------------------------------
 
-function ContrastRow({ name, result, image }) {
+function ContrastRow({ name, result, image, imgLoading }) {
   const { ols, reg } = result;
   return (
     <div className="bg-gray-700 rounded-lg p-4 space-y-3">
       <h4 className="font-semibold text-gray-100">{name}</h4>
 
       {/* Brain surface image — OLS left, Regularized right */}
-      {image && (
+      {image ? (
         <img
-          src={`data:image/png;base64,${image}`}
+          src={image}
           alt={`Brain surface: ${name}`}
           className="w-full rounded"
         />
-      )}
-      {!image && (
-        <div className="h-24 flex items-center justify-center text-gray-500 text-sm bg-gray-800 rounded">
-          Brain image not available
+      ) : (
+        <div className="h-20 flex items-center justify-center gap-2 text-gray-500 text-sm bg-gray-800 rounded">
+          {imgLoading && (
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          )}
+          {imgLoading ? 'Rendering brain surface…' : 'Brain image not available'}
         </div>
       )}
 
@@ -187,9 +189,12 @@ function ContrastRow({ name, result, image }) {
 
 export default function LaplacianGLMPage() {
   const [params, setParams] = useState(DEFAULT_PARAMS);
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(null);
+  const [results, setResults]   = useState(null);
+  const [images, setImages]     = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const [imgLoading, setImgLoading] = useState(false);
+  const [error, setError]       = useState(null);
+  const pollRef = useRef(null);
 
   const set = (key, value) => setParams(p => ({ ...p, [key]: value }));
 
@@ -199,16 +204,37 @@ export default function LaplacianGLMPage() {
       .map(s => parseFloat(s.trim()))
       .filter(v => !isNaN(v));
 
+  // Poll /status/{jobId} every 3 s until images are ready
+  const startPolling = (jobId) => {
+    setImgLoading(true);
+    pollRef.current = setInterval(async () => {
+      try {
+        const res  = await fetch(`${API_BASE}/status/${jobId}`);
+        const data = await res.json();
+        if (data.ready) {
+          clearInterval(pollRef.current);
+          setImages(data.images);
+          setImgLoading(false);
+        }
+      } catch (_) { /* keep polling */ }
+    }, 3000);
+  };
+
+  // Clean up polling on unmount
+  useEffect(() => () => clearInterval(pollRef.current), []);
+
   const handleRun = async () => {
-    if (!API_URL) {
+    if (!API_BASE) {
       setError('API endpoint not configured. Set REACT_APP_GLM_API_URL in your .env file.');
       return;
     }
+    clearInterval(pollRef.current);
     setLoading(true);
     setError(null);
     setResults(null);
+    setImages(null);
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(`${API_BASE}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,6 +249,7 @@ export default function LaplacianGLMPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setResults(data);
+      if (data.jobId) startPolling(data.jobId);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -419,7 +446,8 @@ export default function LaplacianGLMPage() {
                     key={name}
                     name={name}
                     result={result}
-                    image={results.images?.[name]}
+                    image={images?.[name]}
+                    imgLoading={imgLoading}
                   />
                 ))}
               </div>

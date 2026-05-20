@@ -41,13 +41,25 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: S3ReadData
+        - PolicyName: S3Access
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Sub 'arn:aws:s3:::${BucketName}/data/*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub 'arn:aws:s3:::${BucketName}/renders/*'
+        - PolicyName: SelfInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:laplacian-glm'
         - PolicyName: CloudWatchLogs
           PolicyDocument:
             Version: '2012-10-17'
@@ -119,6 +131,13 @@ Resources:
     Properties:
       ApiId: !Ref HttpApi
       RouteKey: 'POST /run'
+      Target: !Sub 'integrations/${LambdaIntegration}'
+
+  StatusRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'GET /status/{jobId}'
       Target: !Sub 'integrations/${LambdaIntegration}'
 
   DefaultStage:
