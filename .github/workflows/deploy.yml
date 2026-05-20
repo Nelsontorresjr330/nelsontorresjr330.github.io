@@ -27,6 +27,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          REACT_APP_GLM_API_URL: ${{ secrets.REACT_APP_GLM_API_URL }}
 
       - name: Move build to docs/
         run: |

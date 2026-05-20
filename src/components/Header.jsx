@@ -14,6 +14,7 @@ export default function Header() {
             <li><Link to="/academic" className="text-gray-400 hover:text-white">Academic</Link></li>
             <li><Link to="/publications" className="text-gray-400 hover:text-white">Publications</Link></li>
             <li><Link to="/personal" className="text-gray-400 hover:text-white">Personal</Link></li>
+            <li><Link to="/research/laplacian-glm" className="text-gray-400 hover:text-white">Research</Link></li>
           </ul>
         </nav>
       </div>

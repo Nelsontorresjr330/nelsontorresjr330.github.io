@@ -9,6 +9,7 @@ import WorkExperiencePage from './pages/WorkExperiencePage';
 import PersonalProjectsPage from './pages/PersonalProjectsPage';
 import AcademicPage from './pages/AcademicPage';
 import PersonalPage from './pages/PersonalPage';
+import LaplacianGLMPage from './pages/LaplacianGLMPage';
 import PublicationsPage from './pages/PublicationsPage';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
             <Route path="/academic" element={<AcademicPage />} />
             <Route path="/publications" element={<PublicationsPage />} />
             <Route path="/personal" element={<PersonalPage />} />
+            <Route path="/research/laplacian-glm" element={<LaplacianGLMPage />} />
           </Routes>
         </main>
         <Footer />
