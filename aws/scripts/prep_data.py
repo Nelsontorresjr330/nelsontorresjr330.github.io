@@ -26,7 +26,7 @@ from scipy.stats import norm as scipy_norm
 from nilearn.datasets import fetch_localizer_first_level, load_fsaverage, load_fsaverage_data
 from nilearn.glm.first_level import FirstLevelModel
 from nilearn.surface import SurfaceImage
-from nilearn.surface.surface import get_data as get_surf_data
+from nilearn.surface.surface import get_data as get_surf_data  # still used for sulc_arr
 
 # Match defaults from LaplacianPenalty.py
 HRF_MODEL        = "glover + derivative"
@@ -162,23 +162,6 @@ def main():
                                      - basic["visual_right_hand_button_press"])
     c_audio_minus_visual          = basic["audio"]       - basic["visual"]
     c_computation_minus_sentences = basic["computation"] - basic["sentences"]
-
-    # ------------------------------------------------------------------
-    # Compute nilearn AR-corrected OLS z-maps (matches glm.compute_contrast)
-    # These are the "official" OLS maps used in LaplacianPenalty.py step 10.
-    # ------------------------------------------------------------------
-    print("Computing nilearn OLS z-maps (AR-corrected)...")
-    contrasts_dict = {
-        "(left - right) button press": c_left_minus_right,
-        "audio - visual":              c_audio_minus_visual,
-        "computation - sentences":     c_computation_minus_sentences,
-    }
-    for cname, cvec in contrasts_dict.items():
-        z_img   = glm.compute_contrast(cvec, stat_type="t")
-        z_arr   = get_surf_data(z_img).astype(np.float32)  # (n_left + n_right,)
-        safe    = cname.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "minus").replace("/", "")
-        _upload_npy(s3, args.bucket, z_arr, f"data/ols_z_{safe}.npy")
-        print(f"    {cname}: {z_arr.shape}, peak z={np.nanmax(np.abs(z_arr)):.2f}")
 
     # ------------------------------------------------------------------
     # Save inflated mesh and sulcal depth for nilearn rendering in handler.py

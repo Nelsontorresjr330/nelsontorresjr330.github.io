@@ -74,13 +74,7 @@ def _load_all():
         "audio - visual":              _load_npy("data/contrast_audio_minus_visual.npy"),
         "computation - sentences":     _load_npy("data/contrast_computation_minus_sentences.npy"),
     }
-    # Precomputed nilearn AR-corrected OLS z-maps (exact match to LaplacianPenalty.py)
-    ols_zmaps = {
-        "(left - right) button press": _load_npy("data/ols_z_left_minus_right_button_press.npy"),
-        "audio - visual":              _load_npy("data/ols_z_audio_minus_visual.npy"),
-        "computation - sentences":     _load_npy("data/ols_z_computation_minus_sentences.npy"),
-    }
-    return X, Y, evals, evecs, n_left, L, mesh, contrasts, ols_zmaps
+    return X, Y, evals, evecs, n_left, L, mesh, contrasts
 
 
 # ---------------------------------------------------------------------------
@@ -90,14 +84,16 @@ def _load_all():
 def fit_ols(X, Y):
     return np.linalg.lstsq(X, Y, rcond=None)[0]
 
-def fit_regularized(X, Y, evals, evecs, lam):
+def fit_regularized(X, Y, evals, evecs, lam, B_ols):
     XtX      = X.T @ X
     R        = (X.T @ Y) @ evecs
     sigma, U = np.linalg.eigh(XtX)
     sigma    = np.maximum(sigma, 1e-12)
-    denom    = sigma[:, None] + lam * evals[None, :]
-    C        = U @ ((U.T @ R) / denom)
-    return C @ evecs.T
+    UtR      = U.T @ R
+    C_ols    = U @ (UtR / sigma[:, None])                          # OLS in k-mode subspace
+    C_reg    = U @ (UtR / (sigma[:, None] + lam * evals[None, :])) # regularized in k-mode subspace
+    # Correct only the k smooth modes; modes outside eigenbasis stay at OLS values
+    return B_ols + (C_reg - C_ols) @ evecs.T
 
 def fit_mse(X, Y, B) -> float:
     return float(np.mean((Y - X @ B) ** 2))
@@ -123,6 +119,110 @@ def _zscore_summary(z, threshold, two_sided):
         "mean_z":       float(np.nanmean(z)),
         "threshold":    float(threshold),
         "histogram": {"counts": hist.tolist(), "edges": np.round(edges, 3).tolist()},
+    }
+
+
+
+# ---------------------------------------------------------------------------
+# Evaluation helpers
+# ---------------------------------------------------------------------------
+
+def _dice(mask1: np.ndarray, mask2: np.ndarray) -> float:
+    n = int(np.sum(mask1) + np.sum(mask2))
+    return 2 * int(np.sum(mask1 & mask2)) / n if n > 0 else 1.0
+
+def _map_corr(z1: np.ndarray, z2: np.ndarray) -> float:
+    m = np.isfinite(z1) & np.isfinite(z2)
+    return float(np.corrcoef(z1[m], z2[m])[0, 1]) if m.sum() > 1 else 0.0
+
+def _sig_mask(z: np.ndarray, threshold: float, two_sided: bool) -> np.ndarray:
+    return (np.abs(z) > threshold) if two_sided else (z > threshold)
+
+def _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_sided):
+    T   = X.shape[0]
+    odd = np.arange(0, T, 2)
+    eve = np.arange(1, T, 2)
+
+    # ── 1. Held-out MSE — fit on first 80 % of timepoints, test on last 20 % ──
+    sp       = int(T * 0.8)
+    B_ols_tr = fit_ols(X[:sp], Y[:sp])
+    B_reg_tr = fit_regularized(X[:sp], Y[:sp], evals, evecs, lam, B_ols_tr)
+    held_out_mse = {
+        "ols": fit_mse(X[sp:], Y[sp:], B_ols_tr),
+        "reg": fit_mse(X[sp:], Y[sp:], B_reg_tr),
+    }
+
+    # ── 2. Semi-synthetic recovery — OLS betas as ground truth ───────────────
+    # Y_synth = X @ B_ols + noise matched to actual residual variance.
+    # Both methods are judged on how well they recover the OLS contrast maps.
+    # Fixed seed ensures the test is identical across API calls.
+    rng      = np.random.default_rng(42)
+    res_std  = float(np.std(Y - X @ B_ols))
+    Y_syn    = X @ B_ols + rng.normal(0.0, res_std, Y.shape)
+    B_ols_sy = fit_ols(X, Y_syn)
+    B_reg_sy = fit_regularized(X, Y_syn, evals, evecs, lam, B_ols_sy)
+
+    semi_synthetic = {}
+    for name, c in contrasts.items():
+        z_true   = contrast_zscore(X, Y,     B_ols,    c)
+        z_ols_sy = contrast_zscore(X, Y_syn, B_ols_sy, c)
+        z_reg_sy = contrast_zscore(X, Y_syn, B_reg_sy, c)
+        semi_synthetic[name] = {
+            "recovery_corr_ols": _map_corr(z_true, z_ols_sy),
+            "recovery_corr_reg": _map_corr(z_true, z_reg_sy),
+        }
+
+    # ── 3. Split-half reproducibility — odd vs even timepoints ───────────────
+    # Interleaved split preserves temporal coverage and HRF sampling in each half.
+    B_ols_odd = fit_ols(X[odd], Y[odd])
+    B_ols_eve = fit_ols(X[eve], Y[eve])
+    B_reg_odd = fit_regularized(X[odd], Y[odd], evals, evecs, lam, B_ols_odd)
+    B_reg_eve = fit_regularized(X[eve], Y[eve], evals, evecs, lam, B_ols_eve)
+
+    reproducibility = {}
+    for name, c in contrasts.items():
+        zo_o = contrast_zscore(X[odd], Y[odd], B_ols_odd, c)
+        zo_e = contrast_zscore(X[eve], Y[eve], B_ols_eve, c)
+        zr_o = contrast_zscore(X[odd], Y[odd], B_reg_odd, c)
+        zr_e = contrast_zscore(X[eve], Y[eve], B_reg_eve, c)
+        reproducibility[name] = {
+            "map_corr_ols": _map_corr(zo_o, zo_e),
+            "map_corr_reg": _map_corr(zr_o, zr_e),
+            "dice_ols":     _dice(_sig_mask(zo_o, threshold, two_sided),
+                                  _sig_mask(zo_e, threshold, two_sided)),
+            "dice_reg":     _dice(_sig_mask(zr_o, threshold, two_sided),
+                                  _sig_mask(zr_e, threshold, two_sided)),
+        }
+
+    # ── 4. HRF consistency — GLM R² at each method's significant vertices ─────
+    # Uses OLS R² as a neutral reference: measures how much of the BOLD variance
+    # at each vertex is explained by the design matrix.
+    # High R² at a significant vertex → the vertex genuinely tracks the task.
+    # Low R² → the vertex was flagged on noise.
+    SS_res = np.sum((Y - X @ B_ols) ** 2, axis=0)
+    SS_tot = np.sum((Y - Y.mean(axis=0, keepdims=True)) ** 2, axis=0)
+    r2     = np.clip(1.0 - SS_res / (SS_tot + 1e-12), 0.0, 1.0)
+
+    hrf_consistency = {}
+    for name, c in contrasts.items():
+        z_o = contrast_zscore(X, Y, B_ols, c)
+        z_r = contrast_zscore(X, Y, B_reg, c)
+        sig_o = _sig_mask(z_o, threshold, two_sided)
+        sig_r = _sig_mask(z_r, threshold, two_sided)
+        def _mr2(mask):
+            return float(np.mean(r2[mask])) if mask.any() else None
+        hrf_consistency[name] = {
+            "r2_ols_sig":  _mr2(sig_o),           # R² averaged over OLS-significant vertices
+            "r2_reg_sig":  _mr2(sig_r),            # R² averaged over reg-significant vertices
+            "r2_ols_only": _mr2(sig_o & ~sig_r),  # vertices reg dropped — were they task-driven?
+            "r2_reg_only": _mr2(sig_r & ~sig_o),  # vertices reg added  — are they task-driven?
+        }
+
+    return {
+        "held_out_mse":    held_out_mse,
+        "semi_synthetic":  semi_synthetic,
+        "reproducibility": reproducibility,
+        "hrf_consistency": hrf_consistency,
     }
 
 
@@ -217,29 +317,46 @@ def _handle_compute(body, context):
     cluster_threshold = int(body.get("cluster_threshold", 20))
     two_sided         = bool(body.get("two_sided", True))
 
-    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts, ols_zmaps = _load_all()
+    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts = _load_all()
     k     = min(k_requested, evals_full.shape[0])
     evals = evals_full[:k]
     evecs = evecs_full[:, :k]
     threshold = float(norm.isf(p_val))
 
-    sweep_mse, sweep_rough = [], []
+    B_ols = fit_ols(X, Y)
+
+    # Pre-compute split-half OLS fits once — reused in both sweep and _evaluate
+    T    = X.shape[0]
+    odd  = np.arange(0, T, 2)
+    eve  = np.arange(1, T, 2)
+    B_ols_odd = fit_ols(X[odd], Y[odd])
+    B_ols_eve = fit_ols(X[eve], Y[eve])
+
+    sweep_mse, sweep_rough, sweep_repro = [], [], []
     for lv in lambda_sweep:
-        B = fit_ols(X, Y) if lv == 0.0 else fit_regularized(X, Y, evals, evecs, lv)
+        B    = B_ols if lv == 0.0 else fit_regularized(X, Y, evals, evecs, lv, B_ols)
+        Bro  = B_ols_odd if lv == 0.0 else fit_regularized(X[odd], Y[odd], evals, evecs, lv, B_ols_odd)
+        Bre  = B_ols_eve if lv == 0.0 else fit_regularized(X[eve], Y[eve], evals, evecs, lv, B_ols_eve)
         sweep_mse.append(fit_mse(X, Y, B))
         sweep_rough.append(roughness(B, L))
+        sweep_repro.append(float(np.mean([
+            _map_corr(contrast_zscore(X[odd], Y[odd], Bro, c),
+                      contrast_zscore(X[eve], Y[eve], Bre, c))
+            for c in contrasts.values()
+        ])))
 
-    B_ols = fit_ols(X, Y)
-    B_reg = fit_regularized(X, Y, evals, evecs, lam)
+    B_reg = fit_regularized(X, Y, evals, evecs, lam, B_ols)
 
     contrast_results = {}
     for name, c in contrasts.items():
-        z_ols = ols_zmaps[name]
+        z_ols = contrast_zscore(X, Y, B_ols, c)
         z_reg = contrast_zscore(X, Y, B_reg, c)
         contrast_results[name] = {
             "ols": _zscore_summary(z_ols, threshold, two_sided),
             "reg": _zscore_summary(z_reg, threshold, two_sided),
         }
+
+    evaluation = _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_sided)
 
     # Kick off async render job
     job_id = str(uuid.uuid4())
@@ -257,7 +374,12 @@ def _handle_compute(body, context):
         "statusCode": 200,
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
         "body": json.dumps({
-            "sweep": {"lambdas": lambda_sweep, "mse": sweep_mse, "roughness": sweep_rough},
+            "sweep": {
+                "lambdas":        lambda_sweep,
+                "mse":            sweep_mse,
+                "roughness":      sweep_rough,
+                "reproducibility": sweep_repro,
+            },
             "selected": {
                 "lambda":         lam,
                 "n_eigenvectors": k,
@@ -266,8 +388,9 @@ def _handle_compute(body, context):
                 "roughness_ols":  roughness(B_ols, L),
                 "roughness_reg":  roughness(B_reg, L),
             },
-            "contrasts": contrast_results,
-            "jobId":     job_id,
+            "contrasts":   contrast_results,
+            "evaluation":  evaluation,
+            "jobId":       job_id,
             "imagesReady": False,
         }),
     }
@@ -286,17 +409,18 @@ def _handle_render_job(event):
     two_sided = bool(body.get("two_sided", True))
     threshold = float(norm.isf(p_val))
 
-    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts, ols_zmaps = _load_all()
+    X, Y, evals_full, evecs_full, n_left, L, mesh, contrasts = _load_all()
     k_requested = int(body.get("n_eigenvectors", 500))
     k     = min(k_requested, evals_full.shape[0])
     evals = evals_full[:k]
     evecs = evecs_full[:, :k]
 
-    B_reg = fit_regularized(X, Y, evals, evecs, lam)
+    B_ols = fit_ols(X, Y)
+    B_reg = fit_regularized(X, Y, evals, evecs, lam, B_ols)
 
     image_keys = {}
     for name, c in contrasts.items():
-        z_ols  = ols_zmaps[name]
+        z_ols  = contrast_zscore(X, Y, B_ols, c)
         z_reg  = contrast_zscore(X, Y, B_reg, c)
         png    = _render_contrast_image(mesh, z_ols, z_reg, n_left, threshold, lam, name)
         s3_key = f"renders/{job_id}/{name.replace(' ', '_').replace('/', '-')}.png"

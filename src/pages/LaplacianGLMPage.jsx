@@ -4,8 +4,6 @@ import {
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 
-// Base URL — no trailing slash, no path.
-// e.g.  REACT_APP_GLM_API_URL=https://xxxx.execute-api.us-east-1.amazonaws.com
 const API_BASE = (process.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 
 const DEFAULT_PARAMS = {
@@ -36,9 +34,7 @@ function NumberInput({ value, onChange, min, max, step, className = '' }) {
     <input
       type="number"
       value={value}
-      min={min}
-      max={max}
-      step={step}
+      min={min} max={max} step={step}
       onChange={e => onChange(Number(e.target.value))}
       className={`w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 ${className}`}
     />
@@ -50,45 +46,41 @@ function SliderWithInput({ label, hint, value, onChange, min, max, step }) {
     <Field label={label} hint={hint}>
       <div className="flex items-center gap-3">
         <input
-          type="range"
-          min={min} max={max} step={step}
-          value={value}
+          type="range" min={min} max={max} step={step} value={value}
           onChange={e => onChange(Number(e.target.value))}
           className="flex-1 accent-blue-500"
         />
-        <NumberInput
-          value={value} onChange={onChange}
-          min={min} max={max} step={step}
-          className="w-24"
-        />
+        <NumberInput value={value} onChange={onChange} min={min} max={max} step={step} className="w-24" />
       </div>
     </Field>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Chart helpers
+// Sweep charts — fixed: type="number" required for log scale in Recharts
 // ---------------------------------------------------------------------------
 
 const LOG_TICK_VALUES = [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0];
 
 function formatLogTick(v) {
-  if (v < 0.01) return '0';
+  if (v <= 0.001) return '0';
   return v < 1 ? v.toString() : v.toString();
 }
 
-function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel }) {
+function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel, yFormatter }) {
   if (!data || data.length === 0) return null;
+  const fmt = yFormatter || (v => v.toFixed(4));
   return (
     <div>
       <p className="text-sm font-medium text-gray-300 mb-2">{label}</p>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data} margin={{ top: 4, right: 20, bottom: 20, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis
+            type="number"
             dataKey="lambdaPlot"
             scale="log"
-            domain={['auto', 'auto']}
+            domain={[0.0009, 6]}
             ticks={LOG_TICK_VALUES}
             tickFormatter={formatLogTick}
             label={{ value: 'λ (log scale)', position: 'insideBottom', offset: -12, fill: '#9ca3af', fontSize: 12 }}
@@ -97,31 +89,191 @@ function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel }) {
           <YAxis
             label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 10, fill: '#9ca3af', fontSize: 12 }}
             tick={{ fill: '#9ca3af', fontSize: 11 }}
-            tickFormatter={v => v.toFixed(4)}
+            tickFormatter={fmt}
             width={70}
           />
           <Tooltip
             contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 6 }}
             labelStyle={{ color: '#d1d5db' }}
-            formatter={(v, name) => [v.toFixed(6), name]}
+            formatter={(v, name) => [typeof v === 'number' ? v.toFixed(5) : v, name]}
             labelFormatter={v => `λ = ${v}`}
           />
           <Line
-            type="monotone"
-            dataKey={dataKey}
-            stroke={color}
-            strokeWidth={2}
-            dot={{ r: 4, fill: color }}
-            name={label}
+            type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2}
+            dot={{ r: 4, fill: color }} name={label} isAnimationActive={false}
           />
           <ReferenceLine
             x={selectedLambda <= 0 ? 0.001 : selectedLambda}
-            stroke="#ef4444"
-            strokeDasharray="4 4"
+            stroke="#ef4444" strokeDasharray="4 4"
             label={{ value: `λ=${selectedLambda}`, fill: '#ef4444', fontSize: 11, position: 'top' }}
           />
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Evaluation panel
+// ---------------------------------------------------------------------------
+
+function EvalCard({ label, value, subtext, winner }) {
+  return (
+    <div className={`rounded p-3 text-center ${winner ? 'bg-green-900/30 border border-green-700' : 'bg-gray-700'}`}>
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-lg font-mono font-semibold text-white">{value}</p>
+      {subtext && <p className={`text-xs mt-0.5 ${winner ? 'text-green-400' : 'text-gray-500'}`}>{subtext}</p>}
+    </div>
+  );
+}
+
+function EvaluationPanel({ evaluation }) {
+  if (!evaluation) return null;
+  const { held_out_mse, semi_synthetic, reproducibility, hrf_consistency } = evaluation;
+  const fmt = v => (v == null ? '—' : v.toFixed(3));
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-5 space-y-7">
+      <div>
+        <h3 className="text-lg font-semibold">Model Evaluation</h3>
+        <p className="text-xs text-gray-500 mt-1">
+          Four independent perspectives on whether each method's activations reflect real brain activity.
+        </p>
+      </div>
+
+      {/* 1 — Held-out MSE */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium text-gray-200">1 · Generalization — Held-out MSE</h4>
+        <p className="text-xs text-gray-500">
+          Both methods fit on the first 80% of timepoints, then used to predict the held-out last 20%.
+          OLS minimises in-sample MSE by definition — held-out MSE is the only fair comparison.
+          Lower = better.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <EvalCard label="OLS" value={held_out_mse.ols.toFixed(1)} />
+          <EvalCard
+            label="Regularized"
+            value={held_out_mse.reg.toFixed(1)}
+            winner={held_out_mse.reg < held_out_mse.ols}
+            subtext={held_out_mse.reg < held_out_mse.ols
+              ? `${((1 - held_out_mse.reg / held_out_mse.ols) * 100).toFixed(1)}% better`
+              : `${((held_out_mse.reg / held_out_mse.ols - 1) * 100).toFixed(1)}% worse`}
+          />
+        </div>
+      </div>
+
+      {/* 2 — Semi-synthetic recovery */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium text-gray-200">2 · Semi-synthetic Recovery</h4>
+        <p className="text-xs text-gray-500">
+          OLS betas used as ground truth. Gaussian noise added at actual residual scale (fixed seed).
+          Both methods fit on the noisy data; Pearson r measures how well each recovers the original
+          contrast z-maps. Higher = closer to ground truth. Note: this is mildly biased toward OLS
+          since the ground truth is derived from OLS.
+        </p>
+        <table className="w-full text-sm mt-2">
+          <thead>
+            <tr className="text-xs text-gray-400 border-b border-gray-700">
+              <th className="pb-1.5 text-left font-normal">Contrast</th>
+              <th className="pb-1.5 text-right font-normal text-blue-400">OLS r</th>
+              <th className="pb-1.5 text-right font-normal text-orange-400">Reg r</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(semi_synthetic).map(([name, v]) => (
+              <tr key={name} className="border-b border-gray-700/40">
+                <td className="py-1.5 text-gray-300 text-xs">{name}</td>
+                <td className="py-1.5 text-right font-mono text-blue-300">{fmt(v.recovery_corr_ols)}</td>
+                <td className="py-1.5 text-right font-mono text-orange-300">{fmt(v.recovery_corr_reg)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 3 — Reproducibility */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium text-gray-200">3 · Split-half Reproducibility</h4>
+        <p className="text-xs text-gray-500">
+          Odd vs even timepoints (interleaved — each half covers the full experiment duration and
+          preserves HRF sampling). Both methods fit independently on each half. Map corr = Pearson r
+          between z-maps; Dice = cluster overlap above threshold. Higher = more stable.
+        </p>
+        <table className="w-full text-sm mt-2">
+          <thead>
+            <tr className="text-xs text-gray-400 border-b border-gray-700">
+              <th className="pb-1.5 text-left font-normal">Contrast</th>
+              <th className="pb-1.5 text-right font-normal text-blue-400">OLS corr</th>
+              <th className="pb-1.5 text-right font-normal text-orange-400">Reg corr</th>
+              <th className="pb-1.5 text-right font-normal text-blue-400">OLS Dice</th>
+              <th className="pb-1.5 text-right font-normal text-orange-400">Reg Dice</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(reproducibility).map(([name, v]) => (
+              <tr key={name} className="border-b border-gray-700/40">
+                <td className="py-1.5 text-gray-300 text-xs">{name}</td>
+                <td className="py-1.5 text-right font-mono text-blue-300">{fmt(v.map_corr_ols)}</td>
+                <td className="py-1.5 text-right font-mono text-orange-300">{fmt(v.map_corr_reg)}</td>
+                <td className="py-1.5 text-right font-mono text-blue-300">{fmt(v.dice_ols)}</td>
+                <td className="py-1.5 text-right font-mono text-orange-300">{fmt(v.dice_reg)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 4 — HRF consistency */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium text-gray-200">4 · HRF Consistency — GLM R² at significant vertices</h4>
+        <p className="text-xs text-gray-500">
+          R² = fraction of BOLD variance explained by the design matrix (OLS fit used as neutral
+          reference). Measured at the significant vertex sets of each method. High R² means the
+          vertex genuinely tracked the task signal over time. The "dropped" and "added" rows
+          reveal whether each method is correctly filtering noise or over/under-smoothing real activations.
+        </p>
+        <div className="space-y-3 mt-2">
+          {Object.entries(hrf_consistency).map(([name, v]) => {
+            const olsOnly = v.r2_ols_only;
+            const regOnly = v.r2_reg_only;
+            let interpretation = null;
+            if (olsOnly != null && regOnly != null) {
+              if (olsOnly > regOnly + 0.03)
+                interpretation = `Reg dropped vertices with R²=${fmt(olsOnly)} — may be over-smoothing real activations.`;
+              else if (regOnly > olsOnly + 0.03)
+                interpretation = `Reg added higher-R² vertices (${fmt(regOnly)}) — found real signal OLS missed.`;
+              else
+                interpretation = `Reg dropped low-R² noise (${fmt(olsOnly)}) and kept similar-quality vertices (${fmt(regOnly)}).`;
+            }
+            return (
+              <div key={name} className="bg-gray-700 rounded p-3 space-y-2">
+                <p className="text-xs font-medium text-gray-200">{name}</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div>
+                    <span className="text-gray-400">OLS-sig R²: </span>
+                    <span className="font-mono text-blue-300">{fmt(v.r2_ols_sig)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Reg-sig R²: </span>
+                    <span className="font-mono text-orange-300">{fmt(v.r2_reg_sig)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">OLS-only (Reg dropped): </span>
+                    <span className="font-mono text-gray-300">{fmt(olsOnly)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Reg-only (Reg added): </span>
+                    <span className="font-mono text-gray-300">{fmt(regOnly)}</span>
+                  </div>
+                </div>
+                {interpretation && (
+                  <p className="text-xs text-yellow-400/80 italic">{interpretation}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -135,14 +287,8 @@ function ContrastRow({ name, result, image, imgLoading }) {
   return (
     <div className="bg-gray-700 rounded-lg p-4 space-y-3">
       <h4 className="font-semibold text-gray-100">{name}</h4>
-
-      {/* Brain surface image — OLS left, Regularized right */}
       {image ? (
-        <img
-          src={image}
-          alt={`Brain surface: ${name}`}
-          className="w-full rounded"
-        />
+        <img src={image} alt={`Brain surface: ${name}`} className="w-full rounded" />
       ) : (
         <div className="h-20 flex items-center justify-center gap-2 text-gray-500 text-sm bg-gray-800 rounded">
           {imgLoading && (
@@ -151,8 +297,6 @@ function ContrastRow({ name, result, image, imgLoading }) {
           {imgLoading ? 'Rendering brain surface…' : 'Brain image not available'}
         </div>
       )}
-
-      {/* Stats table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead>
@@ -188,23 +332,19 @@ function ContrastRow({ name, result, image, imgLoading }) {
 // ---------------------------------------------------------------------------
 
 export default function LaplacianGLMPage() {
-  const [params, setParams] = useState(DEFAULT_PARAMS);
-  const [results, setResults]   = useState(null);
-  const [images, setImages]     = useState(null);
-  const [loading, setLoading]   = useState(false);
+  const [params, setParams]       = useState(DEFAULT_PARAMS);
+  const [results, setResults]     = useState(null);
+  const [images, setImages]       = useState(null);
+  const [loading, setLoading]     = useState(false);
   const [imgLoading, setImgLoading] = useState(false);
-  const [error, setError]       = useState(null);
+  const [error, setError]         = useState(null);
   const pollRef = useRef(null);
 
   const set = (key, value) => setParams(p => ({ ...p, [key]: value }));
 
   const parseSweep = () =>
-    params.lambdaSweep
-      .split(',')
-      .map(s => parseFloat(s.trim()))
-      .filter(v => !isNaN(v));
+    params.lambdaSweep.split(',').map(s => parseFloat(s.trim())).filter(v => !isNaN(v));
 
-  // Poll /status/{jobId} every 3 s until images are ready
   const startPolling = (jobId) => {
     setImgLoading(true);
     pollRef.current = setInterval(async () => {
@@ -220,7 +360,6 @@ export default function LaplacianGLMPage() {
     }, 3000);
   };
 
-  // Clean up polling on unmount
   useEffect(() => () => clearInterval(pollRef.current), []);
 
   const handleRun = async () => {
@@ -257,12 +396,12 @@ export default function LaplacianGLMPage() {
     }
   };
 
-  // Build chart-friendly sweep data
   const sweepData = results
     ? results.sweep.lambdas.map((lam, i) => ({
-        lambdaPlot: lam <= 0 ? 0.001 : lam,
-        mse:        results.sweep.mse[i],
-        roughness:  results.sweep.roughness[i],
+        lambdaPlot:      lam <= 0 ? 0.001 : lam,
+        mse:             results.sweep.mse[i],
+        roughness:       results.sweep.roughness[i],
+        reproducibility: results.sweep.reproducibility?.[i] ?? null,
       }))
     : [];
 
@@ -285,27 +424,20 @@ export default function LaplacianGLMPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ----------------------------------------------------------------
-            Parameter panel
-        ---------------------------------------------------------------- */}
+        {/* Parameter panel */}
         <div className="lg:col-span-1 bg-gray-800 rounded-lg p-5 space-y-5 self-start">
           <h3 className="text-lg font-semibold border-b border-gray-700 pb-2">Parameters</h3>
 
           <SliderWithInput
             label="λ (selected)"
             hint="Regularization strength for contrast maps"
-            value={params.lambda}
-            onChange={v => set('lambda', v)}
+            value={params.lambda} onChange={v => set('lambda', v)}
             min={0.0} max={5.0} step={0.01}
           />
 
-          <Field
-            label="λ sweep values"
-            hint="Comma-separated list. 0.0 = OLS baseline."
-          >
+          <Field label="λ sweep values" hint="Comma-separated list. 0.0 = OLS baseline.">
             <textarea
-              rows={2}
-              value={params.lambdaSweep}
+              rows={2} value={params.lambdaSweep}
               onChange={e => set('lambdaSweep', e.target.value)}
               className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500 resize-none"
             />
@@ -314,32 +446,22 @@ export default function LaplacianGLMPage() {
           <SliderWithInput
             label="Eigenvectors (K)"
             hint="Smoothest K modes of the Laplacian. Max 500."
-            value={params.nEigenvectors}
-            onChange={v => set('nEigenvectors', v)}
+            value={params.nEigenvectors} onChange={v => set('nEigenvectors', v)}
             min={50} max={500} step={50}
           />
 
           <Field label="p-value threshold" hint="Uncorrected. e.g. 0.001 or 0.005">
-            <NumberInput
-              value={params.pVal}
-              onChange={v => set('pVal', v)}
-              min={0.0001} max={0.05} step={0.0001}
-            />
+            <NumberInput value={params.pVal} onChange={v => set('pVal', v)} min={0.0001} max={0.05} step={0.0001} />
           </Field>
 
           <Field label="Cluster threshold (vertices)" hint="Min vertices to report">
-            <NumberInput
-              value={params.clusterThreshold}
-              onChange={v => set('clusterThreshold', v)}
-              min={1} max={200} step={1}
-            />
+            <NumberInput value={params.clusterThreshold} onChange={v => set('clusterThreshold', v)} min={1} max={200} step={1} />
           </Field>
 
           <Field label="Two-sided">
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
-                type="checkbox"
-                checked={params.twoSided}
+                type="checkbox" checked={params.twoSided}
                 onChange={e => set('twoSided', e.target.checked)}
                 className="w-4 h-4 accent-blue-500"
               />
@@ -348,8 +470,7 @@ export default function LaplacianGLMPage() {
           </Field>
 
           <button
-            onClick={handleRun}
-            disabled={loading}
+            onClick={handleRun} disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2 rounded-lg transition-colors"
           >
             {loading ? 'Running…' : 'Run Simulation'}
@@ -362,12 +483,9 @@ export default function LaplacianGLMPage() {
           )}
         </div>
 
-        {/* ----------------------------------------------------------------
-            Results panel
-        ---------------------------------------------------------------- */}
+        {/* Results panel */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Placeholder when no results yet */}
           {!results && !loading && (
             <div className="bg-gray-800 rounded-lg p-10 text-center text-gray-500">
               <p className="text-4xl mb-3">⚙</p>
@@ -395,10 +513,10 @@ export default function LaplacianGLMPage() {
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {[
-                    { label: 'MSE — OLS',        value: results.selected.mse_ols.toFixed(6), color: 'text-blue-400' },
-                    { label: 'MSE — Regularized', value: results.selected.mse_reg.toFixed(6), color: 'text-orange-400' },
-                    { label: 'Roughness — OLS',   value: results.selected.roughness_ols.toFixed(4), color: 'text-blue-400' },
-                    { label: 'Roughness — Reg.',  value: results.selected.roughness_reg.toFixed(4), color: 'text-orange-400' },
+                    { label: 'MSE — OLS',         value: results.selected.mse_ols.toFixed(4),      color: 'text-blue-400' },
+                    { label: 'MSE — Regularized',  value: results.selected.mse_reg.toFixed(4),      color: 'text-orange-400' },
+                    { label: 'Roughness — OLS',    value: results.selected.roughness_ols.toFixed(4), color: 'text-blue-400' },
+                    { label: 'Roughness — Reg.',   value: results.selected.roughness_reg.toFixed(4), color: 'text-orange-400' },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="bg-gray-700 rounded p-3 text-center">
                       <p className="text-xs text-gray-400">{label}</p>
@@ -410,47 +528,53 @@ export default function LaplacianGLMPage() {
 
               {/* Lambda sweep charts */}
               <div className="bg-gray-800 rounded-lg p-5 space-y-6">
-                <h3 className="text-lg font-semibold">λ Sweep — Fit quality vs Smoothness</h3>
+                <h3 className="text-lg font-semibold">λ Sweep</h3>
                 <SweepChart
-                  data={sweepData}
-                  selectedLambda={params.lambda}
-                  dataKey="mse"
-                  color="#60a5fa"
-                  label="In-sample MSE"
+                  data={sweepData} selectedLambda={params.lambda}
+                  dataKey="mse" color="#60a5fa"
+                  label="In-sample MSE (data fit — lower λ always wins here)"
                   yLabel="MSE"
                 />
                 <SweepChart
-                  data={sweepData}
-                  selectedLambda={params.lambda}
-                  dataKey="roughness"
-                  color="#fb923c"
+                  data={sweepData} selectedLambda={params.lambda}
+                  dataKey="roughness" color="#fb923c"
                   label="Spatial Roughness  tr(B L Bᵀ) / N"
                   yLabel="Roughness"
                 />
+                {sweepData[0]?.reproducibility != null && (
+                  <SweepChart
+                    data={sweepData} selectedLambda={params.lambda}
+                    dataKey="reproducibility" color="#a78bfa"
+                    label="Split-half Reproducibility (mean map corr across contrasts — peaks at optimal λ)"
+                    yLabel="Repro"
+                  />
+                )}
                 <p className="text-xs text-gray-500">
-                  Red dashed line = currently selected λ. The optimal λ lives in the elbow where MSE
-                  starts rising steeply while roughness has already dropped substantially.
+                  Red dashed line = currently selected λ. Optimal λ is where reproducibility peaks
+                  and roughness has already dropped substantially, before MSE rises steeply.
                 </p>
               </div>
 
-              {/* Contrast results */}
+              {/* Contrast maps */}
               <div className="bg-gray-800 rounded-lg p-5 space-y-4">
                 <h3 className="text-lg font-semibold">
                   Contrast Maps
                   <span className="text-sm text-gray-400 font-normal ml-2">
-                    z &gt; {(results.contrasts[Object.keys(results.contrasts)[0]]?.ols.threshold ?? '').toFixed(3)} (p &lt; {params.pVal})
+                    z &gt; {(results.contrasts[Object.keys(results.contrasts)[0]]?.ols.threshold ?? 0).toFixed(3)} (p &lt; {params.pVal})
                   </span>
                 </h3>
                 {Object.entries(results.contrasts).map(([name, result]) => (
                   <ContrastRow
-                    key={name}
-                    name={name}
-                    result={result}
-                    image={images?.[name]}
-                    imgLoading={imgLoading}
+                    key={name} name={name} result={result}
+                    image={images?.[name]} imgLoading={imgLoading}
                   />
                 ))}
               </div>
+
+              {/* Evaluation */}
+              {results.evaluation && (
+                <EvaluationPanel evaluation={results.evaluation} />
+              )}
             </>
           )}
         </div>
