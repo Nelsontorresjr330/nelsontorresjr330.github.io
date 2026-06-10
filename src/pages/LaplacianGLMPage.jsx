@@ -67,25 +67,27 @@ function formatLogTick(v) {
   return v < 1 ? v.toString() : v.toString();
 }
 
-function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel, yFormatter }) {
+// Compact number formatter for Y-axis ticks — prevents long numbers overlapping the axis label
+function fmtYTick(v) {
+  if (!isFinite(v)) return '';
+  const a = Math.abs(v);
+  if (a >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+  if (a >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  return v.toFixed(3);
+}
+
+function SweepChart({ data, selectedLambda, dataKey, color, label }) {
   if (!data || data.length === 0) return null;
-  const fmt = yFormatter || (v => v.toFixed(4));
-  // Auto-scale Y to the actual data range with 5% padding — avoids the data
-  // clustering in the top 10% when values are far from zero.
   const values = data.map(d => d[dataKey]).filter(v => v != null && isFinite(v));
   const yMin = Math.min(...values);
   const yMax = Math.max(...values);
   const pad  = (yMax - yMin) * 0.08 || yMax * 0.05;
-  const yDomain = [yMin - pad, yMax + pad];
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-2">
-        <p className="text-sm font-medium text-gray-300">{label}</p>
-        <p className="text-xs text-gray-500 italic">y-axis auto-scaled</p>
-      </div>
+      <p className="text-sm font-medium text-gray-300 mb-2">{label}</p>
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={data} margin={{ top: 4, right: 20, bottom: 20, left: 10 }}>
+        <LineChart data={data} margin={{ top: 4, right: 20, bottom: 20, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis
             type="number"
@@ -98,11 +100,10 @@ function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel, yForm
             tick={{ fill: '#9ca3af', fontSize: 11 }}
           />
           <YAxis
-            domain={yDomain}
-            label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 10, fill: '#9ca3af', fontSize: 12 }}
+            domain={[yMin - pad, yMax + pad]}
             tick={{ fill: '#9ca3af', fontSize: 11 }}
-            tickFormatter={fmt}
-            width={70}
+            tickFormatter={fmtYTick}
+            width={62}
           />
           <Tooltip
             contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 6 }}
@@ -544,21 +545,18 @@ export default function LaplacianGLMPage() {
                 <SweepChart
                   data={sweepData} selectedLambda={params.lambda}
                   dataKey="mse" color="#60a5fa"
-                  label="In-sample MSE (data fit — lower λ always wins here)"
-                  yLabel="MSE"
+                  label="In-sample MSE — lower is better"
                 />
                 <SweepChart
                   data={sweepData} selectedLambda={params.lambda}
                   dataKey="roughness" color="#fb923c"
-                  label="Spatial Roughness  tr(B L Bᵀ) / N"
-                  yLabel="Roughness"
+                  label="Spatial Roughness tr(BLBᵀ)/N — lower is better"
                 />
                 {sweepData[0]?.reproducibility != null && (
                   <SweepChart
                     data={sweepData} selectedLambda={params.lambda}
                     dataKey="reproducibility" color="#a78bfa"
-                    label="Split-half Reproducibility (mean map corr across contrasts — peaks at optimal λ)"
-                    yLabel="Repro"
+                    label="Split-half Reproducibility — higher is better"
                   />
                 )}
                 <p className="text-xs text-gray-500">
