@@ -369,8 +369,6 @@ export default function LaplacianGLMPage() {
 
   const set = (key, value) => setParams(p => ({ ...p, [key]: value }));
 
-  const sweep = generateSweep(params.lambda);
-
   const startPolling = (jobId) => {
     setImgLoading(true);
     pollRef.current = setInterval(async () => {
@@ -399,12 +397,15 @@ export default function LaplacianGLMPage() {
     setResults(null);
     setImages(null);
     try {
+      // Read params.lambda at call time — avoids stale closure from component body
+      const currentLambda = params.lambda;
+      const currentSweep  = generateSweep(currentLambda);
       const res = await fetch(`${API_BASE}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          lambda:            params.lambda,
-          lambda_sweep:      sweep,
+          lambda:            currentLambda,
+          lambda_sweep:      currentSweep,
           n_eigenvectors:    params.nEigenvectors,
           p_val:             params.pVal,
           cluster_threshold: params.clusterThreshold,
