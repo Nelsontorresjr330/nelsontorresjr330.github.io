@@ -7,7 +7,7 @@ import {
 const API_BASE = (process.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 
 const DEFAULT_PARAMS = {
-  lambda:           0.1,
+  lambda:           0.5,
   lambdaSweep:      '0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0',
   nEigenvectors:    500,
   pVal:             0.001,
@@ -60,7 +60,7 @@ function SliderWithInput({ label, hint, value, onChange, min, max, step }) {
 // Sweep charts — fixed: type="number" required for log scale in Recharts
 // ---------------------------------------------------------------------------
 
-const LOG_TICK_VALUES = [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0];
+const ALL_LOG_TICKS = [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
 
 function formatLogTick(v) {
   if (v <= 0.001) return '0';
@@ -83,6 +83,11 @@ function SweepChart({ data, selectedLambda, dataKey, color, label }) {
   const yMax = Math.max(...values);
   const pad  = (yMax - yMin) * 0.08 || yMax * 0.05;
 
+  // X domain scales to fit both sweep points and the selected lambda
+  const xMax   = Math.max(...data.map(d => d.lambdaPlot), selectedLambda <= 0 ? 0.001 : selectedLambda);
+  const xUpper = xMax * 2.5;
+  const xTicks = ALL_LOG_TICKS.filter(t => t >= 0.0009 && t <= xUpper);
+
   return (
     <div>
       <p className="text-sm font-medium text-gray-300 mb-2">{label}</p>
@@ -93,8 +98,8 @@ function SweepChart({ data, selectedLambda, dataKey, color, label }) {
             type="number"
             dataKey="lambdaPlot"
             scale="log"
-            domain={[0.0009, 12]}
-            ticks={LOG_TICK_VALUES}
+            domain={[0.0009, xUpper]}
+            ticks={xTicks}
             tickFormatter={formatLogTick}
             label={{ value: 'λ (log scale)', position: 'insideBottom', offset: -12, fill: '#9ca3af', fontSize: 12 }}
             tick={{ fill: '#9ca3af', fontSize: 11 }}
@@ -441,12 +446,12 @@ export default function LaplacianGLMPage() {
         <div className="lg:col-span-1 bg-gray-800 rounded-lg p-5 space-y-5 self-start">
           <h3 className="text-lg font-semibold border-b border-gray-700 pb-2">Parameters</h3>
 
-          <SliderWithInput
-            label="λ (selected)"
-            hint="Regularization strength for contrast maps"
-            value={params.lambda} onChange={v => set('lambda', v)}
-            min={0.0} max={10.0} step={0.01}
-          />
+          <Field label="λ (regularization strength)" hint="0 = OLS · higher = smoother maps. Max 1000.">
+            <NumberInput
+              value={params.lambda} onChange={v => set('lambda', Math.min(1000, Math.max(0, v)))}
+              min={0} max={1000} step={0.01}
+            />
+          </Field>
 
           <Field label="λ sweep values" hint="Comma-separated list. 0.0 = OLS baseline.">
             <textarea
