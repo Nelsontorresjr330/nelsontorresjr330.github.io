@@ -8,7 +8,7 @@ const API_BASE = (process.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 
 const DEFAULT_PARAMS = {
   lambda:           0.1,
-  lambdaSweep:      '0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0',
+  lambdaSweep:      '0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0',
   nEigenvectors:    500,
   pVal:             0.001,
   clusterThreshold: 20,
@@ -60,7 +60,7 @@ function SliderWithInput({ label, hint, value, onChange, min, max, step }) {
 // Sweep charts — fixed: type="number" required for log scale in Recharts
 // ---------------------------------------------------------------------------
 
-const LOG_TICK_VALUES = [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0];
+const LOG_TICK_VALUES = [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0];
 
 function formatLogTick(v) {
   if (v <= 0.001) return '0';
@@ -70,9 +70,20 @@ function formatLogTick(v) {
 function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel, yFormatter }) {
   if (!data || data.length === 0) return null;
   const fmt = yFormatter || (v => v.toFixed(4));
+  // Auto-scale Y to the actual data range with 5% padding — avoids the data
+  // clustering in the top 10% when values are far from zero.
+  const values = data.map(d => d[dataKey]).filter(v => v != null && isFinite(v));
+  const yMin = Math.min(...values);
+  const yMax = Math.max(...values);
+  const pad  = (yMax - yMin) * 0.08 || yMax * 0.05;
+  const yDomain = [yMin - pad, yMax + pad];
+
   return (
     <div>
-      <p className="text-sm font-medium text-gray-300 mb-2">{label}</p>
+      <div className="flex items-baseline justify-between mb-2">
+        <p className="text-sm font-medium text-gray-300">{label}</p>
+        <p className="text-xs text-gray-500 italic">y-axis auto-scaled</p>
+      </div>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data} margin={{ top: 4, right: 20, bottom: 20, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -80,13 +91,14 @@ function SweepChart({ data, selectedLambda, dataKey, color, label, yLabel, yForm
             type="number"
             dataKey="lambdaPlot"
             scale="log"
-            domain={[0.0009, 6]}
+            domain={[0.0009, 12]}
             ticks={LOG_TICK_VALUES}
             tickFormatter={formatLogTick}
             label={{ value: 'λ (log scale)', position: 'insideBottom', offset: -12, fill: '#9ca3af', fontSize: 12 }}
             tick={{ fill: '#9ca3af', fontSize: 11 }}
           />
           <YAxis
+            domain={yDomain}
             label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 10, fill: '#9ca3af', fontSize: 12 }}
             tick={{ fill: '#9ca3af', fontSize: 11 }}
             tickFormatter={fmt}
@@ -432,7 +444,7 @@ export default function LaplacianGLMPage() {
             label="λ (selected)"
             hint="Regularization strength for contrast maps"
             value={params.lambda} onChange={v => set('lambda', v)}
-            min={0.0} max={5.0} step={0.01}
+            min={0.0} max={10.0} step={0.01}
           />
 
           <Field label="λ sweep values" hint="Comma-separated list. 0.0 = OLS baseline.">
