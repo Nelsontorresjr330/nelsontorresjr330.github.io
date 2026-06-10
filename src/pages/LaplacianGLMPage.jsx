@@ -8,12 +8,21 @@ const API_BASE = (process.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 
 const DEFAULT_PARAMS = {
   lambda:           0.5,
-  lambdaSweep:      '0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0',
   nEigenvectors:    500,
   pVal:             0.001,
   clusterThreshold: 20,
   twoSided:         true,
 };
+
+// Full candidate set for log-spaced sweep — filtered to ≤ lambda at run time
+const SWEEP_CANDIDATES = [0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0,
+                          10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0];
+
+function generateSweep(lambda) {
+  const pts = SWEEP_CANDIDATES.filter(v => v === 0 || v <= lambda);
+  if (lambda > 0 && !pts.includes(lambda)) pts.push(lambda);
+  return pts.sort((a, b) => a - b);
+}
 
 // ---------------------------------------------------------------------------
 // Small reusable controls
@@ -360,8 +369,7 @@ export default function LaplacianGLMPage() {
 
   const set = (key, value) => setParams(p => ({ ...p, [key]: value }));
 
-  const parseSweep = () =>
-    params.lambdaSweep.split(',').map(s => parseFloat(s.trim())).filter(v => !isNaN(v));
+  const sweep = generateSweep(params.lambda);
 
   const startPolling = (jobId) => {
     setImgLoading(true);
@@ -396,7 +404,7 @@ export default function LaplacianGLMPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lambda:            params.lambda,
-          lambda_sweep:      parseSweep(),
+          lambda_sweep:      sweep,
           n_eigenvectors:    params.nEigenvectors,
           p_val:             params.pVal,
           cluster_threshold: params.clusterThreshold,
@@ -453,12 +461,10 @@ export default function LaplacianGLMPage() {
             />
           </Field>
 
-          <Field label="λ sweep values" hint="Comma-separated list. 0.0 = OLS baseline.">
-            <textarea
-              rows={2} value={params.lambdaSweep}
-              onChange={e => set('lambdaSweep', e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500 resize-none"
-            />
+          <Field label="λ sweep" hint="Auto-generated from 0 up to the selected λ.">
+            <p className="font-mono text-xs text-gray-400 bg-gray-700 rounded px-3 py-2 leading-relaxed">
+              {generateSweep(params.lambda).join(', ')}
+            </p>
           </Field>
 
           <SliderWithInput
