@@ -669,6 +669,11 @@ export default function LaplacianGLMPage() {
                 </p>
               </div>
 
+              {/* Evaluation — overall assessment first */}
+              {results.evaluation && (
+                <EvaluationPanel evaluation={results.evaluation} />
+              )}
+
               {/* Contrast maps */}
               <div className="bg-gray-800 rounded-lg p-5 space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -685,11 +690,6 @@ export default function LaplacianGLMPage() {
                   />
                 ))}
               </div>
-
-              {/* Evaluation */}
-              {results.evaluation && (
-                <EvaluationPanel evaluation={results.evaluation} />
-              )}
             </>
           )}
         </div>
