@@ -29,6 +29,7 @@ import matplotlib
 matplotlib.use('Agg')
 import numpy as np
 from scipy import sparse
+from scipy.sparse.csgraph import connected_components as _sparse_cc
 from scipy.stats import norm
 
 BUCKET = os.environ["BUCKET_NAME"]
@@ -109,12 +110,32 @@ def contrast_zscore(X, Y, B, c) -> np.ndarray:
     se_scale = float(c @ np.linalg.inv(X.T @ X) @ c)
     return (c @ B) / np.sqrt(sigma2 * se_scale + 1e-12)
 
-def _zscore_summary(z, threshold, two_sided):
+def _apply_cluster_threshold(mask: np.ndarray, L, min_size: int) -> np.ndarray:
+    """Remove connected clusters in `mask` that have fewer than `min_size` vertices."""
+    if min_size <= 1 or not mask.any():
+        return mask
+    idx = np.where(mask)[0]
+    L_sub = L[idx, :][:, idx]
+    _, labels = _sparse_cc(L_sub, directed=False, connection='weak')
+    out = np.zeros(len(mask), dtype=bool)
+    for lbl in range(labels.max() + 1):
+        comp = idx[labels == lbl]
+        if len(comp) >= min_size:
+            out[comp] = True
+    return out
+
+def _zscore_summary(z, threshold, two_sided, cluster_size=1, L=None):
     zf = z[np.isfinite(z)]
     hist, edges = np.histogram(zf, bins=60, range=(-8.0, 8.0))
+    # Positive and negative tails thresholded independently, then cluster-filtered
+    pos = z > threshold
+    neg = (z < -threshold) if two_sided else np.zeros(len(z), dtype=bool)
+    if cluster_size > 1 and L is not None:
+        pos = _apply_cluster_threshold(pos, L, cluster_size)
+        neg = _apply_cluster_threshold(neg, L, cluster_size)
     return {
-        "sig_positive": int(np.sum(zf >  threshold)),
-        "sig_negative": int(np.sum(zf < -threshold)) if two_sided else 0,
+        "sig_positive": int(np.sum(pos)),
+        "sig_negative": int(np.sum(neg)),
         "peak_z":       float(np.nanmax(np.abs(z))),
         "mean_z":       float(np.nanmean(z)),
         "threshold":    float(threshold),
@@ -135,10 +156,17 @@ def _map_corr(z1: np.ndarray, z2: np.ndarray) -> float:
     m = np.isfinite(z1) & np.isfinite(z2)
     return float(np.corrcoef(z1[m], z2[m])[0, 1]) if m.sum() > 1 else 0.0
 
-def _sig_mask(z: np.ndarray, threshold: float, two_sided: bool) -> np.ndarray:
-    return (np.abs(z) > threshold) if two_sided else (z > threshold)
+def _sig_mask(z: np.ndarray, threshold: float, two_sided: bool,
+              cluster_size: int = 1, L=None) -> np.ndarray:
+    pos = z > threshold
+    neg = (z < -threshold) if two_sided else np.zeros(len(z), dtype=bool)
+    if cluster_size > 1 and L is not None:
+        pos = _apply_cluster_threshold(pos, L, cluster_size)
+        neg = _apply_cluster_threshold(neg, L, cluster_size)
+    return pos | neg
 
-def _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_sided):
+def _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_sided,
+              cluster_size=1, L=None):
     T   = X.shape[0]
     odd = np.arange(0, T, 2)
     eve = np.arange(1, T, 2)
@@ -188,10 +216,10 @@ def _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_s
         reproducibility[name] = {
             "map_corr_ols": _map_corr(zo_o, zo_e),
             "map_corr_reg": _map_corr(zr_o, zr_e),
-            "dice_ols":     _dice(_sig_mask(zo_o, threshold, two_sided),
-                                  _sig_mask(zo_e, threshold, two_sided)),
-            "dice_reg":     _dice(_sig_mask(zr_o, threshold, two_sided),
-                                  _sig_mask(zr_e, threshold, two_sided)),
+            "dice_ols":     _dice(_sig_mask(zo_o, threshold, two_sided, cluster_size, L),
+                                  _sig_mask(zo_e, threshold, two_sided, cluster_size, L)),
+            "dice_reg":     _dice(_sig_mask(zr_o, threshold, two_sided, cluster_size, L),
+                                  _sig_mask(zr_e, threshold, two_sided, cluster_size, L)),
         }
 
     # ── 4. HRF consistency — GLM R² at each method's significant vertices ─────
@@ -207,8 +235,8 @@ def _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_s
     for name, c in contrasts.items():
         z_o = contrast_zscore(X, Y, B_ols, c)
         z_r = contrast_zscore(X, Y, B_reg, c)
-        sig_o = _sig_mask(z_o, threshold, two_sided)
-        sig_r = _sig_mask(z_r, threshold, two_sided)
+        sig_o = _sig_mask(z_o, threshold, two_sided, cluster_size, L)
+        sig_r = _sig_mask(z_r, threshold, two_sided, cluster_size, L)
         def _mr2(mask):
             return float(np.mean(r2[mask])) if mask.any() else None
         hrf_consistency[name] = {
@@ -352,11 +380,12 @@ def _handle_compute(body, context):
         z_ols = contrast_zscore(X, Y, B_ols, c)
         z_reg = contrast_zscore(X, Y, B_reg, c)
         contrast_results[name] = {
-            "ols": _zscore_summary(z_ols, threshold, two_sided),
-            "reg": _zscore_summary(z_reg, threshold, two_sided),
+            "ols": _zscore_summary(z_ols, threshold, two_sided, cluster_threshold, L),
+            "reg": _zscore_summary(z_reg, threshold, two_sided, cluster_threshold, L),
         }
 
-    evaluation = _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_sided)
+    evaluation = _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_sided,
+                           cluster_threshold, L)
 
     # Kick off async render job
     job_id = str(uuid.uuid4())
