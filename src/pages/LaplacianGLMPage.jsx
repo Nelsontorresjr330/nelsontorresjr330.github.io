@@ -480,8 +480,8 @@ export default function LaplacianGLMPage() {
             <NumberInput value={params.pVal} onChange={v => set('pVal', v)} min={0.0001} max={0.05} step={0.0001} />
           </Field>
 
-          <Field label="Cluster threshold (vertices)" hint="Min vertices to report">
-            <NumberInput value={params.clusterThreshold} onChange={v => set('clusterThreshold', v)} min={1} max={200} step={1} />
+          <Field label="Cluster threshold (vertices)" hint="Min contiguous vertices to count as a cluster. Surface has ~20k vertices total.">
+            <NumberInput value={params.clusterThreshold} onChange={v => set('clusterThreshold', v)} min={1} max={5000} step={1} />
           </Field>
 
           <Field label="Two-sided">
