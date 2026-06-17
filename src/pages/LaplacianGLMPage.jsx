@@ -145,6 +145,54 @@ function SweepChart({ data, selectedLambda, dataKey, color, label }) {
 // Evaluation panel
 // ---------------------------------------------------------------------------
 
+// Compute overall regularization benefit as a relative improvement (positive = reg better).
+// Each dimension is normalised relative to OLS so they're comparable across scales.
+function computeOverallScore(ev) {
+  const eps = 1e-9;
+  const dims = [];
+
+  // 1. Generalization — lower MSE is better
+  const { ols: mo, reg: mr } = ev.held_out_mse;
+  dims.push({ label: 'Generalization', delta: (mo - mr) / (mo + eps) });
+
+  // 2. Semi-synthetic recovery — higher correlation is better
+  const ss = Object.values(ev.semi_synthetic);
+  dims.push({
+    label: 'Recovery',
+    delta: ss.reduce((s, v) =>
+      s + (v.recovery_corr_reg - v.recovery_corr_ols) / (Math.abs(v.recovery_corr_ols) + eps), 0) / ss.length,
+  });
+
+  // 3. Reproducibility — higher map correlation is better
+  const rp = Object.values(ev.reproducibility);
+  dims.push({
+    label: 'Reproducibility',
+    delta: rp.reduce((s, v) =>
+      s + (v.map_corr_reg - v.map_corr_ols) / (Math.abs(v.map_corr_ols) + eps), 0) / rp.length,
+  });
+
+  // 4. HRF consistency — higher R² at significant vertices is better
+  const hc = Object.values(ev.hrf_consistency)
+    .filter(v => v.r2_ols_sig != null && v.r2_reg_sig != null);
+  if (hc.length) {
+    dims.push({
+      label: 'HRF Consistency',
+      delta: hc.reduce((s, v) =>
+        s + (v.r2_reg_sig - v.r2_ols_sig) / (Math.abs(v.r2_ols_sig) + eps), 0) / hc.length,
+    });
+  }
+
+  const overall = dims.reduce((s, d) => s + d.delta, 0) / dims.length;
+  return { overall, dims };
+}
+
+// Small badge showing which parameters influence a given metric
+function ParamTag({ type }) {
+  return type === 'independent'
+    ? <span className="text-xs px-1.5 py-0.5 rounded border bg-blue-900/30 border-blue-800 text-blue-300 ml-2">λ · K only</span>
+    : <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-900/30 border-purple-800 text-purple-300 ml-2">all params</span>;
+}
+
 function EvalCard({ label, value, subtext, winner }) {
   return (
     <div className={`rounded p-3 text-center ${winner ? 'bg-green-900/30 border border-green-700' : 'bg-gray-700'}`}>
@@ -158,24 +206,74 @@ function EvalCard({ label, value, subtext, winner }) {
 function EvaluationPanel({ evaluation }) {
   if (!evaluation) return null;
   const { held_out_mse, semi_synthetic, reproducibility, hrf_consistency } = evaluation;
-  const fmt = v => (v == null ? '—' : v.toFixed(3));
+  const fmt  = v => (v == null ? '—' : v.toFixed(3));
+  const pct  = v => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
+  const score = computeOverallScore(evaluation);
 
   return (
     <div className="bg-gray-800 rounded-lg p-5 space-y-7">
       <div>
         <h3 className="text-lg font-semibold">Model Evaluation</h3>
         <p className="text-xs text-gray-500 mt-1">
-          Four independent perspectives on whether each method's activations reflect real brain activity.
+          Four independent perspectives on whether activations reflect real brain activity.
+          Badge <span className="px-1 bg-blue-900/30 border border-blue-800 text-blue-300 rounded text-xs">λ · K only</span> = unaffected by p-value or cluster threshold.
+          Badge <span className="px-1 bg-purple-900/30 border border-purple-800 text-purple-300 rounded text-xs">all params</span> = changes with every parameter.
         </p>
       </div>
 
-      {/* 1 — Held-out MSE */}
+      {/* ── Overall score ── */}
+      <div className="bg-gray-700/60 rounded-lg p-4 space-y-3">
+        <h4 className="text-sm font-semibold text-gray-200">Overall Assessment</h4>
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div>
+            <p className={`text-4xl font-mono font-bold ${
+              score.overall > 0.01 ? 'text-green-400' :
+              score.overall < -0.01 ? 'text-orange-400' : 'text-gray-300'
+            }`}>
+              {pct(score.overall)}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 max-w-[180px]">
+              {score.overall > 0.01
+                ? 'Regularized outperforms OLS on average across all dimensions'
+                : score.overall < -0.01
+                ? 'OLS outperforms Regularized on average across all dimensions'
+                : 'Both methods perform comparably'}
+            </p>
+          </div>
+          <div className="space-y-2 flex-1 min-w-[200px]">
+            {score.dims.map(d => (
+              <div key={d.label} className="space-y-0.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">{d.label}</span>
+                  <span className={`font-mono ${d.delta > 0.005 ? 'text-green-400' : d.delta < -0.005 ? 'text-orange-400' : 'text-gray-400'}`}>
+                    {pct(d.delta)}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-600 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${d.delta >= 0 ? 'bg-green-500' : 'bg-orange-500'}`}
+                    style={{ width: `${Math.min(Math.abs(d.delta) * 300, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 border-t border-gray-600 pt-2">
+          Average relative improvement of Regularized vs OLS. Positive = Regularized wins.
+          Bar length = magnitude (100% bar = 33%+ improvement).
+        </p>
+      </div>
+
+      {/* ── 1 — Held-out MSE ── */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-200">1 · Generalization — Held-out MSE</h4>
+        <div className="flex items-center">
+          <h4 className="text-sm font-medium text-gray-200">1 · Generalization — Held-out MSE</h4>
+          <ParamTag type="independent" />
+        </div>
         <p className="text-xs text-gray-500">
-          Both methods fit on the first 80% of timepoints, then used to predict the held-out last 20%.
-          OLS minimises in-sample MSE by definition — held-out MSE is the only fair comparison.
-          Lower = better.
+          Fit on the first 80% of timepoints, predicted on the last 20%. OLS minimises
+          in-sample MSE by definition — held-out MSE is the only fair comparison. Lower = better.
         </p>
         <div className="grid grid-cols-2 gap-3 mt-2">
           <EvalCard label="OLS" value={held_out_mse.ols.toFixed(1)} />
@@ -190,14 +288,16 @@ function EvaluationPanel({ evaluation }) {
         </div>
       </div>
 
-      {/* 2 — Semi-synthetic recovery */}
+      {/* ── 2 — Semi-synthetic recovery ── */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-200">2 · Semi-synthetic Recovery</h4>
+        <div className="flex items-center">
+          <h4 className="text-sm font-medium text-gray-200">2 · Semi-synthetic Recovery</h4>
+          <ParamTag type="independent" />
+        </div>
         <p className="text-xs text-gray-500">
-          OLS betas used as ground truth. Gaussian noise added at actual residual scale (fixed seed).
-          Both methods fit on the noisy data; Pearson r measures how well each recovers the original
-          contrast z-maps. Higher = closer to ground truth. Note: this is mildly biased toward OLS
-          since the ground truth is derived from OLS.
+          OLS betas as ground truth; Gaussian noise added at actual residual scale (fixed seed).
+          Pearson r measures how well each method recovers the original contrast z-maps.
+          Mildly biased toward OLS since ground truth is derived from OLS.
         </p>
         <table className="w-full text-sm mt-2">
           <thead>
@@ -219,13 +319,16 @@ function EvaluationPanel({ evaluation }) {
         </table>
       </div>
 
-      {/* 3 — Reproducibility */}
+      {/* ── 3 — Reproducibility ── */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-200">3 · Split-half Reproducibility</h4>
+        <div className="flex items-center">
+          <h4 className="text-sm font-medium text-gray-200">3 · Split-half Reproducibility</h4>
+          <ParamTag type="dependent" />
+        </div>
         <p className="text-xs text-gray-500">
-          Odd vs even timepoints (interleaved — each half covers the full experiment duration and
-          preserves HRF sampling). Both methods fit independently on each half. Map corr = Pearson r
-          between z-maps; Dice = cluster overlap above threshold. Higher = more stable.
+          Odd vs even timepoints (interleaved, preserves HRF sampling). Map corr = Pearson r between
+          full z-maps (unaffected by threshold). Dice = cluster overlap above threshold (affected by p-value
+          and cluster threshold).
         </p>
         <table className="w-full text-sm mt-2">
           <thead>
@@ -251,14 +354,16 @@ function EvaluationPanel({ evaluation }) {
         </table>
       </div>
 
-      {/* 4 — HRF consistency */}
+      {/* ── 4 — HRF consistency ── */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-200">4 · HRF Consistency — GLM R² at significant vertices</h4>
+        <div className="flex items-center">
+          <h4 className="text-sm font-medium text-gray-200">4 · HRF Consistency — GLM R²</h4>
+          <ParamTag type="dependent" />
+        </div>
         <p className="text-xs text-gray-500">
-          R² = fraction of BOLD variance explained by the design matrix (OLS fit used as neutral
-          reference). Measured at the significant vertex sets of each method. High R² means the
-          vertex genuinely tracked the task signal over time. The "dropped" and "added" rows
-          reveal whether each method is correctly filtering noise or over/under-smoothing real activations.
+          Fraction of BOLD variance explained by the design matrix at each method's significant vertices.
+          High R² = vertex genuinely tracked the task. The dropped/added rows reveal whether each method
+          is filtering noise or over-smoothing real activations.
         </p>
         <div className="space-y-3 mt-2">
           {Object.entries(hrf_consistency).map(([name, v]) => {
@@ -277,26 +382,12 @@ function EvaluationPanel({ evaluation }) {
               <div key={name} className="bg-gray-700 rounded p-3 space-y-2">
                 <p className="text-xs font-medium text-gray-200">{name}</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div>
-                    <span className="text-gray-400">OLS-sig R²: </span>
-                    <span className="font-mono text-blue-300">{fmt(v.r2_ols_sig)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Reg-sig R²: </span>
-                    <span className="font-mono text-orange-300">{fmt(v.r2_reg_sig)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">OLS-only (Reg dropped): </span>
-                    <span className="font-mono text-gray-300">{fmt(olsOnly)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Reg-only (Reg added): </span>
-                    <span className="font-mono text-gray-300">{fmt(regOnly)}</span>
-                  </div>
+                  <div><span className="text-gray-400">OLS-sig R²: </span><span className="font-mono text-blue-300">{fmt(v.r2_ols_sig)}</span></div>
+                  <div><span className="text-gray-400">Reg-sig R²: </span><span className="font-mono text-orange-300">{fmt(v.r2_reg_sig)}</span></div>
+                  <div><span className="text-gray-400">OLS-only (Reg dropped): </span><span className="font-mono text-gray-300">{fmt(olsOnly)}</span></div>
+                  <div><span className="text-gray-400">Reg-only (Reg added): </span><span className="font-mono text-gray-300">{fmt(regOnly)}</span></div>
                 </div>
-                {interpretation && (
-                  <p className="text-xs text-yellow-400/80 italic">{interpretation}</p>
-                )}
+                {interpretation && <p className="text-xs text-yellow-400/80 italic">{interpretation}</p>}
               </div>
             );
           })}
@@ -580,12 +671,13 @@ export default function LaplacianGLMPage() {
 
               {/* Contrast maps */}
               <div className="bg-gray-800 rounded-lg p-5 space-y-4">
-                <h3 className="text-lg font-semibold">
-                  Contrast Maps
-                  <span className="text-sm text-gray-400 font-normal ml-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-lg font-semibold">Contrast Maps</h3>
+                  <span className="text-sm text-gray-400">
                     z &gt; {(results.contrasts[Object.keys(results.contrasts)[0]]?.ols.threshold ?? 0).toFixed(3)} (p &lt; {params.pVal})
                   </span>
-                </h3>
+                  <ParamTag type="dependent" />
+                </div>
                 {Object.entries(results.contrasts).map(([name, result]) => (
                   <ContrastRow
                     key={name} name={name} result={result}
