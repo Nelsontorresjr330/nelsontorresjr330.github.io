@@ -171,16 +171,20 @@ function computeOverallScore(ev) {
       s + (v.map_corr_reg - v.map_corr_ols) / (Math.abs(v.map_corr_ols) + eps), 0) / rp.length,
   });
 
-  // 4. HRF consistency — higher R² at significant vertices is better
-  const hc = Object.values(ev.hrf_consistency)
-    .filter(v => v.r2_ols_sig != null && v.r2_reg_sig != null);
-  if (hc.length) {
-    dims.push({
-      label: 'HRF Consistency',
-      delta: hc.reduce((s, v) =>
-        s + (v.r2_reg_sig - v.r2_ols_sig) / (Math.abs(v.r2_ols_sig) + eps), 0) / hc.length,
-    });
-  }
+  // 4. HRF consistency — higher R² at significant vertices is better.
+  // Always contributes (fixed 4-dim denominator). Per contrast: both defined →
+  // relative improvement; reg significant-set empty where OLS detected signal →
+  // failure (-1); otherwise neutral (0). This prevents extreme p-values from
+  // gaming the score by making the regularized map empty and dropping a dimension.
+  const hcAll = Object.values(ev.hrf_consistency);
+  const hrfDelta = hcAll.reduce((s, v) => {
+    if (v.r2_ols_sig != null && v.r2_reg_sig != null)
+      return s + (v.r2_reg_sig - v.r2_ols_sig) / (Math.abs(v.r2_ols_sig) + eps);
+    if (v.r2_ols_sig != null && v.r2_reg_sig == null)
+      return s - 1.0;   // reg found nothing significant where OLS did
+    return s;           // neutral
+  }, 0) / (hcAll.length || 1);
+  dims.push({ label: 'HRF Consistency', delta: hrfDelta });
 
   const overall = dims.reduce((s, d) => s + d.delta, 0) / dims.length;
   return { overall, dims };

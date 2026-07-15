@@ -20,6 +20,7 @@ import time
 import boto3
 import numpy as np
 from scipy import sparse
+from scipy.linalg import eigh as dense_eigh
 from scipy.sparse.linalg import eigsh
 from scipy.stats import norm as scipy_norm
 
@@ -32,6 +33,11 @@ from nilearn.surface.surface import get_data as get_surf_data  # still used for 
 HRF_MODEL        = "glover + derivative"
 DRIFT_MODEL      = "cosine"
 HIGH_PASS_CUTOFF = 128
+# Default eigenvector count. 1000 is "web-safe": the resulting evecs.npy
+# (~156 MB) loads within the API Gateway 29s limit on the 2 GB Lambda.
+# Offline research runs can pass a larger --n-eigenvectors (e.g. 10000),
+# but the live web backend cannot serve counts that produce a >~200 MB
+# evecs file (cold-start load exceeds the API Gateway timeout).
 N_EIGENVECTORS   = 1000
 
 
@@ -71,8 +77,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bucket", required=True, help="S3 bucket name (from CloudFormation output)")
     parser.add_argument("--region", default="us-east-1")
+    parser.add_argument("--n-eigenvectors", type=int, default=N_EIGENVECTORS,
+                        help=f"Number of Laplacian eigenvectors to precompute "
+                             f"(default {N_EIGENVECTORS}, web-safe). Larger values (e.g. 10000) "
+                             f"are for offline research only — the live Lambda cannot load them "
+                             f"within the API Gateway timeout.")
     args = parser.parse_args()
 
+    n_eig = args.n_eigenvectors
     s3 = boto3.client("s3", region_name=args.region)
 
     # ------------------------------------------------------------------
@@ -131,9 +143,20 @@ def main():
     # ------------------------------------------------------------------
     # Step 6: Compute truncated spectral eigenbasis
     # ------------------------------------------------------------------
-    print(f"[6/6] Computing {N_EIGENVECTORS} eigenvectors (slow step — a few minutes)...")
+    print(f"[6/6] Computing {n_eig} eigenvectors (slow step — a few minutes)...")
     t0 = time.time()
-    evals, evecs = eigsh(L_full, k=N_EIGENVECTORS, which="SM", tol=1e-6, maxiter=3000)
+    n_v = L_full.shape[0]
+    if n_eig >= 0.20 * n_v:
+        # Large fraction of the spectrum: ARPACK (eigsh) is inefficient and
+        # unstable here (it would build a near-full Krylov basis). A dense
+        # partial solver is the correct tool — LAPACK's ?syevr computes just
+        # the smallest n_eig eigenpairs directly.
+        print(f"    Using dense solver (k={n_eig} is a large fraction of n={n_v}).")
+        L_dense = L_full.toarray()
+        evals, evecs = dense_eigh(L_dense, subset_by_index=[0, n_eig - 1])
+        del L_dense
+    else:
+        evals, evecs = eigsh(L_full, k=n_eig, which="SM", tol=1e-6, maxiter=3000)
     order  = np.argsort(evals)
     evals  = evals[order].astype(np.float64)
     evecs  = evecs[:, order].astype(np.float64)

@@ -21,3 +21,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Laplacian GLM — local research artifacts (do not commit; large / regenerable)
+/local_data/
+*.db
+search_results*.json
+aws/scripts/__pycache__/
