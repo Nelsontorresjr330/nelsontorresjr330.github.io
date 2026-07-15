@@ -53,15 +53,16 @@ from scipy.stats import norm
 #  Total trials = product of all list lengths.
 #  Tip: narrow ranges around promising values for a finer pass.
 #
-#  NOTE: n_eigenvectors ceiling raised to 10000. Successive searches
-#  kept converging to the boundary (K~998 at [.,1000], K~1990 at
-#  [.,2000]), so the ceiling was pushed to 10000 (~half of the 20484
-#  vertices) to locate where the optimum finally plateaus.
+#  NOTE: n_eigenvectors ceiling is 1000 — the web-servable limit. Higher
+#  K keeps improving the score (more of the eigenbasis = closer to the
+#  exact penalized GLM), but the live 2 GB Lambda can only load ~1000
+#  eigenvectors within the API Gateway timeout, so the reported optimum
+#  is constrained to what the deployed simulation can actually run.
 # ============================================================
 
 SEARCH_SPACE = {
     "lambda":           [0.1, 0.3, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5],
-    "n_eigenvectors":   [500, 1000, 2000, 3000, 4000, 5000, 6000, 8000, 10000],
+    "n_eigenvectors":   [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
     "p_val":            [1e-5, 1e-4, 1e-3, 5e-3, 1e-2],   # sane fMRI thresholds only
     "cluster_threshold":[8, 9, 10, 11, 12],
 }
@@ -74,16 +75,16 @@ SEARCH_SPACE = {
 #  Integer params are rounded; p_val is searched in log10 space.
 #  Widen these if the best result keeps landing on a boundary.
 #
-#  NOTE: n_eigenvectors ceiling raised 2000 -> 10000. Searches keep
-#  converging to the boundary (K~998 at 1000, K~1990 at 2000), so the
-#  ceiling was pushed to 10000 (~half of the 20484 vertices) to find
-#  where the optimum plateaus. Backend now precomputes 10000.
-#  Run with a FRESH --study-db so stale K<=2000 trials don't bias TPE.
+#  NOTE: n_eigenvectors ceiling is 1000 — the web-servable limit. The
+#  score keeps rising with K (higher K = closer to the exact penalized
+#  GLM), but the live 2 GB Lambda can only load ~1000 eigenvectors
+#  within the API Gateway timeout. The optimum is therefore reported
+#  under the constraint of what the deployed simulation can run.
 # ============================================================
 
 ADAPTIVE_BOUNDS = {
     "lambda":           (0.05, 3.00),    # continuous float
-    "n_eigenvectors":   (50,   10000),   # integer — raised ceiling, was capping out at 2000
+    "n_eigenvectors":   (50,   1000),    # integer — web-servable ceiling (2 GB Lambda limit)
     "log10_p_val":      (-5.0, -1.3),   # log10 of p_val; maps to 1e-5 … ~0.05 (sane thresholds)
     "cluster_threshold":(5,    20),      # integer
 }
