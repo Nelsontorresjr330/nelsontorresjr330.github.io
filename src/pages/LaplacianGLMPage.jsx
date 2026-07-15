@@ -9,7 +9,7 @@ const API_BASE = (process.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 const DEFAULT_PARAMS = {
   lambda:           0.5,
   nEigenvectors:    500,
-  pVal:             0.001,
+  pVal:             '0.001',   // string — accepts decimal or scientific notation
   clusterThreshold: 20,
   twoSided:         true,
 };
@@ -488,6 +488,13 @@ export default function LaplacianGLMPage() {
     setError(null);
     setResults(null);
     setImages(null);
+    // Parse p-value — accepts decimal (0.001) or scientific notation (3.96e-8)
+    const pv = parseFloat(params.pVal);
+    if (isNaN(pv) || pv <= 0 || pv >= 1) {
+      setError('Enter a valid p-value between 0 and 1 (e.g. 0.001 or 3.96e-8).');
+      setLoading(false);
+      return;
+    }
     try {
       // Read params.lambda at call time — avoids stale closure from component body
       const currentLambda = params.lambda;
@@ -499,7 +506,7 @@ export default function LaplacianGLMPage() {
           lambda:            currentLambda,
           lambda_sweep:      currentSweep,
           n_eigenvectors:    params.nEigenvectors,
-          p_val:             params.pVal,
+          p_val:             pv,
           cluster_threshold: params.clusterThreshold,
           two_sided:         params.twoSided,
         }),
@@ -562,13 +569,19 @@ export default function LaplacianGLMPage() {
 
           <SliderWithInput
             label="Eigenvectors (K)"
-            hint="Smoothest K modes of the Laplacian. Max 500."
+            hint="Smoothest K modes of the Laplacian. Max 1000."
             value={params.nEigenvectors} onChange={v => set('nEigenvectors', v)}
-            min={50} max={500} step={50}
+            min={50} max={1000} step={50}
           />
 
-          <Field label="p-value threshold" hint="Uncorrected. e.g. 0.001 or 0.005">
-            <NumberInput value={params.pVal} onChange={v => set('pVal', v)} min={0.0001} max={0.05} step={0.0001} />
+          <Field label="p-value threshold" hint="Decimal or scientific notation, e.g. 0.001 or 3.96e-8">
+            <input
+              type="text"
+              value={params.pVal}
+              onChange={e => set('pVal', e.target.value)}
+              placeholder="0.001 or 3.96e-8"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+            />
           </Field>
 
           <Field label="Cluster threshold (vertices)" hint="Min contiguous vertices to count as a cluster. Surface has ~20k vertices total.">
