@@ -32,7 +32,7 @@ from nilearn.surface.surface import get_data as get_surf_data  # still used for 
 HRF_MODEL        = "glover + derivative"
 DRIFT_MODEL      = "cosine"
 HIGH_PASS_CUTOFF = 128
-N_EIGENVECTORS   = 500
+N_EIGENVECTORS   = 1000
 
 
 def _build_laplacian(mesh_part):
