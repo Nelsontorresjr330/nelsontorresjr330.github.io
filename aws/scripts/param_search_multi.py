@@ -120,6 +120,30 @@ def main():
     lock = threading.Lock()
     n_jobs = (os.cpu_count() or 1) if args.workers == -1 else args.workers
 
+    # Re-hydrate prior trials from the study so best / results / JSON reflect the
+    # FULL history on resume (Optuna keeps every trial in the db; this restores
+    # the script's own view of them). per_dataset is recovered from user_attrs.
+    for t in study.trials:
+        if t.state.name == "COMPLETE" and t.value is not None and "log10_p_val" in t.params:
+            params = {
+                "lambda":            t.params["lambda"],
+                "n_eigenvectors":    t.params["n_eigenvectors"],
+                "p_val":             10.0 ** t.params["log10_p_val"],
+                "cluster_threshold": t.params["cluster_threshold"],
+            }
+            entry = {"params": params, "combined": t.value,
+                     "per_dataset": t.user_attrs.get("per_dataset", {})}
+            results.append(entry)
+            if best is None or t.value > best["combined"]:
+                best = entry
+    if results:
+        # Older trials may lack the stored breakdown — recompute it for the best.
+        if not best["per_dataset"]:
+            _, best["per_dataset"] = score_multi(best["params"], eb, datasets)
+        print(f"Resuming study — {len(results)} prior trials loaded "
+              f"(best {best['combined']*100:+.2f}%).")
+        _print_best(best, len(results), 0.0, names)
+
     def objective(trial):
         nonlocal best
         params = {
@@ -129,6 +153,7 @@ def main():
             "cluster_threshold": trial.suggest_int("cluster_threshold", *B["cluster_threshold"]),
         }
         combined, per = score_multi(params, eb, datasets)
+        trial.set_user_attr("per_dataset", per)   # persist breakdown for future resumes
         with lock:
             n = len(results) + 1
             is_best = best is None or combined > best["combined"]
@@ -172,7 +197,8 @@ def _print_best(best, n, elapsed, names):
     print(f"  cluster_threshold = {p['cluster_threshold']}")
     print(f"  COMBINED score    = {best['combined']*100:+.2f}%")
     for name in names:
-        print(f"    {name:16} {best['per_dataset'][name]*100:>+7.2f}%")
+        v = best["per_dataset"].get(name)
+        print(f"    {name:16} {v*100:>+7.2f}%" if v is not None else f"    {name:16}     n/a")
     print(f"{'─'*74}")
 
 
