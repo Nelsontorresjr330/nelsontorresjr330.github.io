@@ -32,31 +32,47 @@ from nilearn.surface.surface import get_data as surf_data
 FS = load_fsaverage()  # fsaverage5
 
 
-def _contrasts_from_design(cols):
-    """One contrast per main task regressor (skip drift / constant / motion / derivative)."""
+def _onehot(cols):
+    """Map each design-matrix column name to its one-hot selector vector."""
     eye = np.eye(len(cols))
-    out = {}
-    for i, col in enumerate(cols):
-        c = col.lower()
-        if ("drift" in c or "constant" in c or "derivative" in c
-                or c.startswith("trans") or c.startswith("rot")):
-            continue
-        out[col] = eye[i].astype(np.float64)
-    return out
+    return {c: eye[i].astype(np.float64) for i, c in enumerate(cols)}
 
 
-def _prep(vol_img, t_r, events=None, design=None, slice_time_ref=0.0):
+# ---- Per-dataset SEMANTIC contrasts (interpretable difference contrasts) ----
+
+def loc_contrasts(cols):
+    b = _onehot(cols)
+    audio  = (b["audio_left_hand_button_press"] + b["audio_right_hand_button_press"]
+              + b["audio_computation"] + b["sentence_listening"])
+    visual = (b["visual_left_hand_button_press"] + b["visual_right_hand_button_press"]
+              + b["visual_computation"] + b["sentence_reading"])
+    comp = b["visual_computation"] + b["audio_computation"]
+    sent = b["sentence_listening"] + b["sentence_reading"]
+    return {
+        "(left - right) button press": (b["audio_left_hand_button_press"] - b["audio_right_hand_button_press"]
+                                        + b["visual_left_hand_button_press"] - b["visual_right_hand_button_press"]),
+        "audio - visual":              audio - visual,
+        "computation - sentences":     comp - sent,
+    }
+
+def aud_contrasts(cols):
+    b = _onehot(cols)
+    return {"listening": b["listening"]}          # single condition vs baseline
+
+def multi_contrasts(cols):
+    b = _onehot(cols)
+    return {"faces - scrambled": b["faces"] - b["scrambled"]}
+
+
+def _prep(vol_img, t_r, events, contrast_fn, slice_time_ref=0.0):
     surf = SurfaceImage.from_volume(mesh=FS["pial"], volume_img=vol_img)
     Y = surf_data(surf).T.astype(np.float64)         # (T, 20484) — full surface
-    if design is None:
-        glm = FirstLevelModel(t_r=t_r, slice_time_ref=slice_time_ref,
-                              hrf_model="glover + derivative", drift_model="cosine",
-                              high_pass=1 / 128, minimize_memory=False).fit(run_imgs=surf, events=events)
-        Xdf = glm.design_matrices_[0]
-        cols = list(Xdf.columns); X = Xdf.values.astype(np.float64)
-    else:
-        X = design.values.astype(np.float64); cols = list(design.columns)
-    return X, np.nan_to_num(Y), _contrasts_from_design(cols)
+    glm = FirstLevelModel(t_r=t_r, slice_time_ref=slice_time_ref,
+                          hrf_model="glover + derivative", drift_model="cosine",
+                          high_pass=1 / 128, minimize_memory=False).fit(run_imgs=surf, events=events)
+    Xdf = glm.design_matrices_[0]
+    cols = list(Xdf.columns); X = Xdf.values.astype(np.float64)
+    return X, np.nan_to_num(Y), contrast_fn(cols)
 
 
 def _events(obj):
@@ -65,13 +81,13 @@ def _events(obj):
 
 def build_localizer():
     a = fetch_localizer_first_level()
-    return _prep(a.epi_img, a.t_r, events=_events(a.events), slice_time_ref=a.slice_time_ref)
+    return _prep(a.epi_img, a.t_r, _events(a.events), loc_contrasts, slice_time_ref=a.slice_time_ref)
 
 
 def build_spm_auditory():
     b = fetch_spm_auditory()
     vol = b.func[0] if isinstance(b.func, (list, tuple)) else b.func
-    return _prep(vol, b.t_r, events=_events(b.events))
+    return _prep(vol, b.t_r, _events(b.events), aud_contrasts)
 
 
 def build_spm_multimodal():
@@ -82,8 +98,7 @@ def build_spm_multimodal():
     ref_affine = imgs[0].affine
     arrs = [np.asarray(im.dataobj).reshape(im.shape[:3]) for im in imgs]
     vol = nib.Nifti1Image(np.stack(arrs, axis=-1), ref_affine)
-    ev = _events(m.events1)
-    return _prep(vol, m.t_r, events=ev)
+    return _prep(vol, m.t_r, _events(m.events1), multi_contrasts)
 
 
 BUILDERS = {
