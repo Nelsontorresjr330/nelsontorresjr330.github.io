@@ -39,6 +39,14 @@ if aws lambda get-function --function-name laplacian-glm --region "${REGION}" >/
         --function-name laplacian-glm \
         --image-uri "${IMAGE_URI}" \
         --region "${REGION}"
+    aws lambda wait function-updated --function-name laplacian-glm --region "${REGION}"
+    # Multi-dataset compute + rendering needs more memory and a longer timeout
+    # (the async job renders ~5 contrasts x 4 hemispheric panels).
+    aws lambda update-function-configuration \
+        --function-name laplacian-glm \
+        --memory-size 4096 \
+        --timeout 300 \
+        --region "${REGION}"
 else
     # First-time create — wire up env, memory, and API Gateway permission
     API_ID=$(aws cloudformation describe-stacks \

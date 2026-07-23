@@ -47,7 +47,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: s3:GetObject
-                Resource: !Sub 'arn:aws:s3:::${BucketName}/data/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${BucketName}/data/*'
+                  - !Sub 'arn:aws:s3:::${BucketName}/data_multi/*'
               - Effect: Allow
                 Action:
                   - s3:PutObject
