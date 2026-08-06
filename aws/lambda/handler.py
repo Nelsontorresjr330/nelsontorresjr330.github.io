@@ -29,8 +29,9 @@ import matplotlib
 matplotlib.use('Agg')
 import numpy as np
 from scipy import sparse
-from scipy.sparse.csgraph import connected_components as _sparse_cc
-from scipy.stats import norm
+from core_glm import (norm, fit_ols, fit_regularized, fit_mse, contrast_zscore,
+                      _apply_cluster_threshold, _sig_mask, _map_corr, _dice,
+                      _evaluate, compute_score)
 
 BUCKET = os.environ["BUCKET_NAME"]
 _s3     = boto3.client("s3")
@@ -98,58 +99,6 @@ def _load_dataset(name: str):
 # Core math
 # ---------------------------------------------------------------------------
 
-def fit_ols(X, Y):
-    return np.linalg.lstsq(X, Y, rcond=None)[0]
-
-def fit_regularized(X, Y, evals, evecs, lam, B_ols):
-    XtX      = X.T @ X
-    R        = (X.T @ Y) @ evecs
-    sigma, U = np.linalg.eigh(XtX)
-    sigma    = np.maximum(sigma, 1e-12)
-    UtR      = U.T @ R
-    C_ols    = U @ (UtR / sigma[:, None])
-    C_reg    = U @ (UtR / (sigma[:, None] + lam * evals[None, :]))
-    return B_ols + (C_reg - C_ols) @ evecs.T
-
-def fit_mse(X, Y, B) -> float:
-    return float(np.mean((Y - X @ B) ** 2))
-
-def contrast_zscore(X, Y, B, c) -> np.ndarray:
-    T, p     = X.shape
-    resid    = Y - X @ B
-    sigma2   = np.sum(resid ** 2, axis=0) / (T - p)
-    se_scale = float(c @ np.linalg.inv(X.T @ X) @ c)
-    return (c @ B) / np.sqrt(sigma2 * se_scale + 1e-12)
-
-def _apply_cluster_threshold(mask, L, min_size):
-    if min_size <= 1 or not mask.any():
-        return mask
-    idx = np.where(mask)[0]
-    L_sub = L[idx, :][:, idx]
-    _, labels = _sparse_cc(L_sub, directed=False, connection='weak')
-    out = np.zeros(len(mask), dtype=bool)
-    for lbl in range(labels.max() + 1):
-        comp = idx[labels == lbl]
-        if len(comp) >= min_size:
-            out[comp] = True
-    return out
-
-def _sig_mask(z, threshold, two_sided, cluster_size=1, L=None):
-    pos = z > threshold
-    neg = (z < -threshold) if two_sided else np.zeros(len(z), dtype=bool)
-    if cluster_size > 1 and L is not None:
-        pos = _apply_cluster_threshold(pos, L, cluster_size)
-        neg = _apply_cluster_threshold(neg, L, cluster_size)
-    return pos | neg
-
-def _dice(m1, m2):
-    n = int(np.sum(m1) + np.sum(m2))
-    return 2 * int(np.sum(m1 & m2)) / n if n > 0 else 1.0
-
-def _map_corr(z1, z2):
-    m = np.isfinite(z1) & np.isfinite(z2)
-    return float(np.corrcoef(z1[m], z2[m])[0, 1]) if m.sum() > 1 else 0.0
-
 def _sig_counts(z, threshold, two_sided, cluster_size, L):
     pos = z > threshold
     neg = (z < -threshold) if two_sided else np.zeros(len(z), dtype=bool)
@@ -158,95 +107,6 @@ def _sig_counts(z, threshold, two_sided, cluster_size, L):
         neg = _apply_cluster_threshold(neg, L, cluster_size)
     return {"sig_positive": int(pos.sum()), "sig_negative": int(neg.sum()),
             "peak_z": float(np.nanmax(np.abs(z)))}
-
-
-# ---------------------------------------------------------------------------
-# Evaluation + combined score (identical definition to param_search_multi)
-# ---------------------------------------------------------------------------
-
-def _evaluate(X, Y, evals, evecs, lam, B_ols, B_reg, contrasts, threshold, two_sided,
-              cluster_size, L):
-    T   = X.shape[0]
-    odd = np.arange(0, T, 2)
-    eve = np.arange(1, T, 2)
-
-    sp       = int(T * 0.8)
-    B_ols_tr = fit_ols(X[:sp], Y[:sp])
-    B_reg_tr = fit_regularized(X[:sp], Y[:sp], evals, evecs, lam, B_ols_tr)
-    held_out_mse = {"ols": fit_mse(X[sp:], Y[sp:], B_ols_tr),
-                    "reg": fit_mse(X[sp:], Y[sp:], B_reg_tr)}
-
-    rng      = np.random.default_rng(42)
-    res_std  = float(np.std(Y - X @ B_ols))
-    Y_syn    = X @ B_ols + rng.normal(0.0, res_std, Y.shape)
-    B_ols_sy = fit_ols(X, Y_syn)
-    B_reg_sy = fit_regularized(X, Y_syn, evals, evecs, lam, B_ols_sy)
-    semi_synthetic = {}
-    for name, c in contrasts.items():
-        z_true   = contrast_zscore(X, Y,     B_ols,    c)
-        z_ols_sy = contrast_zscore(X, Y_syn, B_ols_sy, c)
-        z_reg_sy = contrast_zscore(X, Y_syn, B_reg_sy, c)
-        semi_synthetic[name] = {"recovery_corr_ols": _map_corr(z_true, z_ols_sy),
-                                "recovery_corr_reg": _map_corr(z_true, z_reg_sy)}
-
-    B_ols_odd = fit_ols(X[odd], Y[odd])
-    B_ols_eve = fit_ols(X[eve], Y[eve])
-    B_reg_odd = fit_regularized(X[odd], Y[odd], evals, evecs, lam, B_ols_odd)
-    B_reg_eve = fit_regularized(X[eve], Y[eve], evals, evecs, lam, B_ols_eve)
-    reproducibility = {}
-    for name, c in contrasts.items():
-        zo_o = contrast_zscore(X[odd], Y[odd], B_ols_odd, c)
-        zo_e = contrast_zscore(X[eve], Y[eve], B_ols_eve, c)
-        zr_o = contrast_zscore(X[odd], Y[odd], B_reg_odd, c)
-        zr_e = contrast_zscore(X[eve], Y[eve], B_reg_eve, c)
-        reproducibility[name] = {
-            "map_corr_ols": _map_corr(zo_o, zo_e),
-            "map_corr_reg": _map_corr(zr_o, zr_e),
-            "dice_ols": _dice(_sig_mask(zo_o, threshold, two_sided, cluster_size, L),
-                              _sig_mask(zo_e, threshold, two_sided, cluster_size, L)),
-            "dice_reg": _dice(_sig_mask(zr_o, threshold, two_sided, cluster_size, L),
-                              _sig_mask(zr_e, threshold, two_sided, cluster_size, L)),
-        }
-
-    SS_res = np.sum((Y - X @ B_ols) ** 2, axis=0)
-    SS_tot = np.sum((Y - Y.mean(axis=0, keepdims=True)) ** 2, axis=0)
-    r2     = np.clip(1.0 - SS_res / (SS_tot + 1e-12), 0.0, 1.0)
-    hrf_consistency = {}
-    for name, c in contrasts.items():
-        z_o = contrast_zscore(X, Y, B_ols, c)
-        z_r = contrast_zscore(X, Y, B_reg, c)
-        sig_o = _sig_mask(z_o, threshold, two_sided, cluster_size, L)
-        sig_r = _sig_mask(z_r, threshold, two_sided, cluster_size, L)
-        _mr2 = lambda m: (float(np.mean(r2[m])) if m.any() else None)
-        hrf_consistency[name] = {"r2_ols_sig": _mr2(sig_o), "r2_reg_sig": _mr2(sig_r)}
-
-    return {"held_out_mse": held_out_mse, "semi_synthetic": semi_synthetic,
-            "reproducibility": reproducibility, "hrf_consistency": hrf_consistency}
-
-
-def compute_score(ev):
-    eps  = 1e-9
-    dims = {}
-    mo, mr = ev["held_out_mse"]["ols"], ev["held_out_mse"]["reg"]
-    dims["generalization"] = (mo - mr) / (mo + eps)
-    ss = list(ev["semi_synthetic"].values())
-    dims["recovery"] = sum((v["recovery_corr_reg"] - v["recovery_corr_ols"]) /
-                           (abs(v["recovery_corr_ols"]) + eps) for v in ss) / len(ss)
-    rp = list(ev["reproducibility"].values())
-    dims["reproducibility"] = sum((v["map_corr_reg"] - v["map_corr_ols"]) /
-                                  (abs(v["map_corr_ols"]) + eps) for v in rp) / len(rp)
-    hrf_vals = []
-    for v in ev["hrf_consistency"].values():
-        ro, rr = v["r2_ols_sig"], v["r2_reg_sig"]
-        if ro is not None and rr is not None:
-            hrf_vals.append((rr - ro) / (abs(ro) + eps))
-        elif ro is not None and rr is None:
-            hrf_vals.append(-1.0)
-        else:
-            hrf_vals.append(0.0)
-    dims["hrf_consistency"] = sum(hrf_vals) / len(hrf_vals) if hrf_vals else 0.0
-    overall = sum(dims.values()) / len(dims)
-    return overall, dims
 
 
 # ---------------------------------------------------------------------------

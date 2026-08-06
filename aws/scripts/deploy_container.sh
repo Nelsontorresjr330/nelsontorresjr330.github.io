@@ -26,12 +26,15 @@ aws ecr get-login-password --region "${REGION}" | \
     "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
 echo "==> Building and pushing image (linux/amd64)..."
+# Context is aws/ (not aws/lambda/) so the image can COPY the shared
+# scripts/core_glm.py alongside lambda/handler.py.
 docker buildx build \
     --platform linux/amd64 \
     --provenance=false \
     --push \
     -t "${IMAGE_URI}" \
-    aws/lambda/
+    -f aws/lambda/Dockerfile \
+    aws/
 
 echo "==> Updating Lambda function code..."
 if aws lambda get-function --function-name laplacian-glm --region "${REGION}" >/dev/null 2>&1; then

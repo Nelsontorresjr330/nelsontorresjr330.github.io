@@ -28,7 +28,7 @@ import numpy as np
 from scipy import sparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import param_search as ps   # reuse fit_ols, fit_regularized, _evaluate, compute_score, ADAPTIVE_BOUNDS
+import core_glm as ps       # shared math: fit_ols, fit_regularized, _evaluate, compute_score, ADAPTIVE_BOUNDS, norm
 
 
 # ---------------------------------------------------------------------------

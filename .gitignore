@@ -30,3 +30,5 @@ aws/scripts/__pycache__/
 /local_data_multi/
 multi_results*.json
 multi_study*.db
+*_results.json
+*.db-journal
