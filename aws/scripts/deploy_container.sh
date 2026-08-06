@@ -44,7 +44,7 @@ if aws lambda get-function --function-name laplacian-glm --region "${REGION}" >/
         --region "${REGION}"
     aws lambda wait function-updated --function-name laplacian-glm --region "${REGION}"
     # Multi-dataset compute + rendering needs more memory and a longer timeout
-    # (the async job renders ~5 contrasts x 4 hemispheric panels).
+    # (the async job renders ~5 contrasts x 2 panels: OLS + regularized).
     aws lambda update-function-configuration \
         --function-name laplacian-glm \
         --memory-size 4096 \

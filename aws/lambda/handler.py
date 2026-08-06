@@ -113,20 +113,41 @@ def _sig_counts(z, threshold, two_sided, cluster_size, L):
 # Brain surface rendering (nilearn) — OLS vs Reg, both hemispheres
 # ---------------------------------------------------------------------------
 
-from collections import namedtuple as _namedtuple
-_SurfMesh = _namedtuple('SurfMesh', ['coordinates', 'faces'])
+# Rendering mirrors nilearn's surface first-level walkthrough
+# (examples/04_glm_first_level/plot_localizer_surface_analysis): the stat map is
+# shown on the inflated fsaverage5 mesh over a sulcal background with the RdBu_r
+# colormap, and each contrast uses the same hemisphere choice nilearn does —
+# "both" for the (left - right) button press, "left" for the others — so our OLS
+# panels line up directly with the published figures.
+_BOTH_HEMI_CONTRAST = "(left - right) button press"
 
-def _make_mesh(coords, faces):
-    return _SurfMesh(coordinates=coords.astype(np.float32), faces=faces.astype(np.int32))
+def _build_poly(mesh):
+    """Inflated PolyMesh + sulcal background SurfaceImage (as in the nilearn example)."""
+    from nilearn.surface import InMemoryMesh, PolyMesh, SurfaceImage
+    poly = PolyMesh(
+        left=InMemoryMesh(mesh["left_coords"].astype(np.float32),
+                          mesh["left_faces"].astype(np.int32)),
+        right=InMemoryMesh(mesh["right_coords"].astype(np.float32),
+                           mesh["right_faces"].astype(np.int32)),
+    )
+    bg = SurfaceImage(mesh=poly, data={"left":  mesh["sulc_left"].astype(np.float32),
+                                       "right": mesh["sulc_right"].astype(np.float32)})
+    return poly, bg
 
-def _render_panel(surf_mesh, z_vals, sulc, hemi, vmax, threshold, title):
+def _stat_img(poly, z, n_left):
+    """A per-vertex z-map as a SurfaceImage on the inflated mesh."""
+    from nilearn.surface import SurfaceImage
+    z = np.nan_to_num(z, nan=0.0).astype(np.float32)
+    return SurfaceImage(mesh=poly, data={"left": z[:n_left], "right": z[n_left:]})
+
+def _render_panel(poly, stat_img, bg, hemi, vmax, threshold, title):
     import matplotlib.pyplot as plt
     from nilearn.plotting import plot_surf_stat_map
     from PIL import Image as PILImage
+    # view omitted -> nilearn's default per-hemi view, matching the walkthrough
     fig = plot_surf_stat_map(
-        surf_mesh, np.nan_to_num(z_vals, nan=0.0), bg_map=sulc, hemi=hemi,
-        view='lateral', cmap='cold_hot', vmax=vmax, threshold=threshold,
-        colorbar=True, title=title, bg_on_data=True,
+        surf_mesh=poly, stat_map=stat_img, bg_map=bg, hemi=hemi,
+        cmap='RdBu_r', vmax=vmax, threshold=threshold, colorbar=True, title=title,
     )
     buf = io.BytesIO()
     fig.savefig(buf, format='png', dpi=90, bbox_inches='tight')
@@ -137,26 +158,21 @@ def _render_panel(surf_mesh, z_vals, sulc, hemi, vmax, threshold, title):
 
 def _render_contrast_image(mesh, z_ols, z_reg, n_left, threshold, lam, cname) -> bytes:
     from PIL import Image as PILImage
-    ml = _make_mesh(mesh["left_coords"],  mesh["left_faces"])
-    mr = _make_mesh(mesh["right_coords"], mesh["right_faces"])
-    sl, sr = mesh["sulc_left"], mesh["sulc_right"]
-    zo_l, zo_r = z_ols[:n_left], z_ols[n_left:]
-    zr_l, zr_r = z_reg[:n_left], z_reg[n_left:]
+    poly, bg = _build_poly(mesh)
+    hemi = 'both' if cname == _BOTH_HEMI_CONTRAST else 'left'
     vmax = float(min(max(np.nanmax(np.abs(z_ols)), np.nanmax(np.abs(z_reg))), 8.0))
     vmax = max(vmax, threshold + 0.5)
 
-    # Always show both hemispheres for both methods (2x2): OLS L/R, Reg L/R
+    # OLS on top, regularized below — same hemisphere/view as the nilearn figure
     panels = [
-        _render_panel(ml, zo_l, sl, 'left',  vmax, threshold, 'OLS (L)'),
-        _render_panel(mr, zo_r, sr, 'right', vmax, threshold, 'OLS (R)'),
-        _render_panel(ml, zr_l, sl, 'left',  vmax, threshold, f'Reg λ={lam:g} (L)'),
-        _render_panel(mr, zr_r, sr, 'right', vmax, threshold, f'Reg λ={lam:g} (R)'),
+        _render_panel(poly, _stat_img(poly, z_ols, n_left), bg, hemi, vmax, threshold, 'OLS'),
+        _render_panel(poly, _stat_img(poly, z_reg, n_left), bg, hemi, vmax, threshold, f'Reg λ={lam:g}'),
     ]
     w = max(p.width for p in panels); h = max(p.height for p in panels)
-    combined = PILImage.new('RGB', (2 * w, 2 * h), (17, 24, 39))
+    combined = PILImage.new('RGB', (w, 2 * h), (17, 24, 39))
     for i, p in enumerate(panels):
-        cx = (i % 2) * w + (w - p.width) // 2
-        cy = (i // 2) * h + (h - p.height) // 2
+        cx = (w - p.width) // 2
+        cy = i * h + (h - p.height) // 2
         combined.paste(p, (cx, cy))
     buf = io.BytesIO(); combined.save(buf, format='PNG'); buf.seek(0)
     return buf.read()
