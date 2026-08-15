@@ -26,7 +26,8 @@ yarn-error.log*
 /local_data/
 *.db
 search_results*.json
-aws/scripts/__pycache__/
+research/scripts/__pycache__/
+research/lambda/__pycache__/
 /local_data_multi/
 multi_results*.json
 multi_study*.db
