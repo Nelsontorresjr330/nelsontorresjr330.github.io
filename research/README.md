@@ -2,7 +2,7 @@
 
 **Nelson Torres** — Research Advisor: Dr. Xin Yang — August 2026
 
-An interactive simulation of the method is available at [nelsontorresjr330.github.io](https://nelsontorresjr330.github.io) (navigate to the Laplacian GLM page).
+An interactive simulation of the method is available at **[nelsontorresjr330.github.io/research/laplacian-glm](https://nelsontorresjr330.github.io/research/laplacian-glm)**.
 
 ---
 
@@ -137,6 +137,12 @@ The Lambda runs with 2 GB memory and a 29-second API Gateway timeout, capping K 
 
 ---
 
-## Citation
+## Results
 
-Torres, N. (2026). *Cortical Surface Informed Laplacian Regularized GLM for First-Level fMRI Estimation*. Research Advisor: Dr. Xin Yang.
+**K sensitivity — combined score vs. number of retained eigenmodes:**
+
+![K sensitivity](results/eigenvalue_spectrum.png)
+
+**Activation maps — OLS vs. K=1,000 (deployed) vs. K=20,482 (local best):**
+
+![Activation comparison](results/activation_comparison.png)
