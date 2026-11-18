@@ -7,32 +7,16 @@ Steps Claude already ran are listed under **Done** with what was checked, so not
 
 | # | What | Time |
 |---|---|---|
-| 1 | Answer the domain verification email, if one arrives | 1 min |
-| 2 | Update the website link on LinkedIn and anywhere else it appears | 2 min |
-| 3 | Set up Project 1 (PyTorch, ABIDE I) when the research work starts | 15 min |
+| 1 | Update the website link on LinkedIn and anywhere else it appears | 2 min |
+| 2 | Set up Project 1 (PyTorch, ABIDE I) when the research work starts | 15 min |
 
-### 1. Domain verification email (only if one arrives)
-
-ICANN requires the registrant email on a new domain to be confirmed. Route 53 sends the message from
-`noreply@registrar.amazon.com` (or Gandi/Amazon Registrar). If it lands in your inbox, click the link
-within **15 days**, or the domain is suspended. Check the status any time:
-
-```bash
-cd ~/Desktop/"Git Repos"/nelsontorresjr330.github.io
-aws route53domains get-domain-detail --region us-east-1 --domain-name nelsontorres.dev --query '{status:StatusList,expires:ExpirationDate}' --output json
-```
-
-Expected: a status list without `clientHold`. If you see `clientHold`, the email hasn't been
-confirmed yet: resend it with
-`aws route53domains resend-contact-reachability-email --region us-east-1 --domain-name nelsontorres.dev`.
-
-### 2. Update links to the site
+### 1. Update links to the site
 
 LinkedIn → Edit intro → Website: `https://nelsontorres.dev`. The résumé PDF in `public/Resume.pdf`
 can point there too. Old links (`nelsontorresjr330.github.io/...`) keep working: they forward to the
 same path on nelsontorres.dev.
 
-### 3. Project 1 setup (PyTorch and ABIDE I)
+### 2. Project 1 setup (PyTorch and ABIDE I)
 
 Python 3.12 in a project venv (PyTorch support for your system Python 3.14 can lag):
 
@@ -65,15 +49,15 @@ committed (ABIDE data usage agreement).
 
 | Step | What was done | How it was checked |
 |---|---|---|
-| Domain | `nelsontorres.dev` registered in Route 53 for 1 year, auto-renew and privacy protection on, same personal contact as nelsonandgrace.com. Hosted zone `Z029417718HFE5O4F6CLQ` | Registration operation `SUCCESSFUL` |
+| Domain | `nelsontorres.dev` registered in Route 53 until 2027-11-18, auto-renew and privacy protection on, same personal contact as nelsonandgrace.com. Hosted zone `Z029417718HFE5O4F6CLQ` | Registration `SUCCESSFUL`; status `ACTIVE`; contact verification `DONE` (no email to answer) |
 | Config | `infra/cdk/cdk.json` points at the domain and zone | `cdk synth` |
 | Deploy role | `Portfolio-DeployIdentity` stack: role `GitHubActions-Portfolio-Deploy`, trusted only by this repo's `dev` and `prod` environments | CloudFormation `CREATE_COMPLETE` |
 | GitHub | Environments `dev` (branch `dev` only) and `prod` (branch `main` only); repo variable `AWS_DEPLOY_ROLE_ARN` | `gh variable list` |
 | Site stacks | `Portfolio-Certificates-{Dev,Prod}`, `Portfolio-Site-{Dev,Prod}`: certificates, S3, CloudFront, DNS | CloudFormation status; smoke tests below |
 | Demo API limit | Laplacian API stage throttled to 5 req/s, bursts of 10 | `DefaultRouteSettings` on the stage |
-| Dev deploy | Push to `dev` → `deploy-aws.yml` → `https://dev.nelsontorres.dev` | Workflow smoke test (pages, demo API, old-path 301) |
-| Prod deploy | `dev` → `main` PR merged → `https://nelsontorres.dev` | Workflow smoke test plus `www` redirect |
-| GitHub Pages | `nelsontorresjr330.github.io` forwards every path to nelsontorres.dev | `curl` of an old path |
+| Dev deploy | Push to `dev` → `deploy-aws.yml` → `https://dev.nelsontorres.dev` | Workflow smoke test; a real demo run through `/api/laplacian-glm` returned +21.0% |
+| Prod deploy | PR #1 (`dev` → `main`) merged → `https://nelsontorres.dev` | Workflow smoke test; curl of every page, `www` and old-path redirects, demo API |
+| GitHub Pages | `nelsontorresjr330.github.io` forwards every path (query and hash kept) to nelsontorres.dev; Pages build workflow removed | Browser load of three old links (PR #2) |
 
 ## How it ships from now on
 
