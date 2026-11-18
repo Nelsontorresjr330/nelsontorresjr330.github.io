@@ -84,6 +84,27 @@ describe('landing page (stack map)', () => {
     expect(panel.querySelector('.pointer-fine\\:line-clamp-4')).not.toBeNull();
   });
 
+  it('goes straight from one row to the next without flashing back to the instructions', () => {
+    // Regression (2026-11-18): each row cleared the hover when the cursor left it, so between two
+    // rows, or over a section heading, the panel showed the instructions and every row lit up.
+    renderAt('/');
+    const archera = screen.getByRole('button', { name: /Archera · Software Developer/ });
+    const heading = screen.getAllByText('ACADEMIC').find((el) => el.tagName === 'P');
+    fireEvent.mouseOver(archera);
+    expect(screen.getByText('Jan 2026 – Present')).toBeInTheDocument();
+    // The cursor moves off the row onto a heading that is still inside the map.
+    fireEvent.mouseOut(archera, { relatedTarget: heading });
+    expect(screen.queryByText(/Below are my experiences/)).toBeNull();
+    expect(screen.getByText('Jan 2026 – Present')).toBeInTheDocument();
+    // Then onto the next row: straight to its details.
+    const amazon = screen.getByRole('button', { name: /Amazon · Senior Software Engineer/ });
+    fireEvent.mouseOut(heading, { relatedTarget: amazon });
+    expect(screen.getByText('Jun 2025 – Jan 2026')).toBeInTheDocument();
+    // Leaving the whole map (to outside the page) clears it.
+    fireEvent.mouseOut(amazon, { relatedTarget: document.body });
+    expect(screen.getByText(/Below are my experiences/)).toBeInTheDocument();
+  });
+
   it('has no status or date column on the rows', () => {
     renderAt('/');
     expect(screen.getByRole('button', { name: /Archera · Software Developer/ })).not.toHaveTextContent('2026');

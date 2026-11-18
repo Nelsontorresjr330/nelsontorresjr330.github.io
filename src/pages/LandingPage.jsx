@@ -110,7 +110,13 @@ export default function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-[1200px] px-6 pt-2">
-        <div className="grid grid-cols-[minmax(0,1.25fr)_24px_minmax(0,1fr)] items-start sm:grid-cols-[minmax(0,1.15fr)_minmax(48px,1fr)_minmax(0,0.95fr)]">
+        {/* Hover clears only when the cursor leaves the whole map, never between two rows or over a
+            heading: clearing per row made the panel and the dimming flash on every row change. */}
+        <div
+          data-testid="stack-map"
+          onMouseLeave={() => setHover(null)}
+          className="grid grid-cols-[minmax(0,1.25fr)_24px_minmax(0,1fr)] items-start sm:grid-cols-[minmax(0,1.15fr)_minmax(48px,1fr)_minmax(0,0.95fr)]"
+        >
           <div>
             {AREA_ORDER.map((a) => (
               <div key={a}>
@@ -127,7 +133,6 @@ export default function LandingPage() {
                       aria-pressed={sel === w.id}
                       onClick={() => toggle(w.id)}
                       onMouseEnter={() => setHover(w.id)}
-                      onMouseLeave={() => setHover(null)}
                       onFocus={() => setHover(w.id)}
                       onBlur={() => setHover(null)}
                       className="flex h-9 w-full items-center justify-end gap-2.5 rounded-l-lg border-0 pl-2.5 text-right text-sm transition-opacity"
@@ -161,7 +166,6 @@ export default function LandingPage() {
                       aria-pressed={sel === t.id}
                       onClick={() => toggle(t.id)}
                       onMouseEnter={() => setHover(t.id)}
-                      onMouseLeave={() => setHover(null)}
                       onFocus={() => setHover(t.id)}
                       onBlur={() => setHover(null)}
                       className="flex h-9 w-full items-center gap-2.5 rounded-r-lg border-0 pr-2.5 text-left font-mono text-[13px] transition-opacity"
