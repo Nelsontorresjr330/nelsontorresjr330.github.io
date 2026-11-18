@@ -1,4 +1,4 @@
-# Master runbook: everything Nelson runs
+# runbook-notOlene: everything Nelson runs (non-Olene work)
 
 One ordered list of the commands only a person can run for the portfolio, the research demos and
 Project 1. Do the parts in order; each block starts with `cd`, says what to expect, and where to

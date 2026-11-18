@@ -1,7 +1,7 @@
 name: Deploy (AWS)
 
 # dev push -> dev.<domain>; merged dev -> main PR -> <domain>.
-# Does nothing until the repo variable AWS_DEPLOY_ROLE_ARN is set (RUNBOOK.md, part 5).
+# Does nothing until the repo variable AWS_DEPLOY_ROLE_ARN is set (runbook-notOlene.md, part 5).
 on:
   push:
     branches: [dev, main]

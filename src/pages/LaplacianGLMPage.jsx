@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { postWithRetry } from '../lib/postWithRetry';
 
 const API_BASE = (import.meta.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 
@@ -157,16 +158,13 @@ export default function LaplacianGLMPage() {
     clearInterval(pollRef.current);
     setLoading(true); setError(null); setResults(null); setImages(null);
     try {
-      const res = await fetch(`${API_BASE}/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lambda:            params.lambda,
-          n_eigenvectors:    params.nEigenvectors,
-          p_val:             pv,
-          cluster_threshold: params.clusterThreshold,
-          two_sided:         true,
-        }),
+      // Retries once on a 5xx: the Lambda can fail its first request after a cold start.
+      const res = await postWithRetry(`${API_BASE}/run`, {
+        lambda:            params.lambda,
+        n_eigenvectors:    params.nEigenvectors,
+        p_val:             pv,
+        cluster_threshold: params.clusterThreshold,
+        two_sided:         true,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);

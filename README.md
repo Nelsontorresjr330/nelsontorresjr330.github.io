@@ -49,5 +49,5 @@ CI (`ci.yml`) runs every test, both builds and a CDK synth on each PR and before
 | `research/` | the Laplacian GLM paper's code and demo backend |
 | `scripts/` | the GitHub Pages redirect generator (cutover) |
 
-Docs: [RUNBOOK.md](RUNBOOK.md) (everything a person runs, in order: domain, AWS, cutover, demo API, Project 1 setup) ·
+Docs: [runbook-notOlene.md](runbook-notOlene.md) (everything a person runs, in order: domain, AWS, cutover, demo API, Project 1 setup) ·
 [futureContext.md](futureContext.md) (risks and future jobs).

@@ -6,15 +6,16 @@ import { CAREER_START } from './careerClock';
 // Areas: 'academic' | 'professional' | 'personal'
 // Project status: 'live' (public demo or product) | 'in-progress' | 'planned'
 
+// Display order: Professional, Academic, Personal (chosen 2026-11-18).
 export const AREAS = [
-  { id: 'academic', label: 'Academic', blurb: 'Ph.D. research in computational neuroimaging and deep learning.', statement: 'learning how the brain is wired, from fMRI.' },
-  { id: 'professional', label: 'Professional', blurb: 'Full-time software engineering since October 2022, and what I know how to do.', statement: 'software people rely on every day.' },
-  { id: 'personal', label: 'Personal', blurb: 'Olene Software, the company I own, and what I make for fun.', statement: 'what I own, build and love.' },
+  { id: 'professional', label: 'Professional', blurb: 'Full-time software engineering since October 2022: backend, data and cloud systems.', statement: 'work history and expertise.' },
+  { id: 'academic', label: 'Academic', blurb: 'Computational and Data Science Ph.D. research in fMRI and deep learning.', statement: 'degrees, research and publications.' },
+  { id: 'personal', label: 'Personal', blurb: 'Olene Software LLC, which I own and operate, and personal projects.', statement: 'Olene Software and projects.' },
 ];
 
 export const STATUS_LABELS = {
   live: 'Live',
-  'in-progress': 'In progress',
+  'in-progress': 'In Progress',
   planned: 'Planned',
 };
 
@@ -23,8 +24,8 @@ export const profile = {
   role: 'Software developer and Ph.D. researcher',
   headline: 'I write software at Archera and teach neural networks to read brain scans.',
   summary:
-    'Software developer at Archera, Ph.D. student in Computational and Data Sciences at Middle Tennessee ' +
-    'State University (advised by Dr. Xin Yang), and owner of Olene Software. My research applies graph ' +
+    'Software Developer at Archera, Computational and Data Science Ph.D. Candidate researching fMRI and deep ' +
+    'learning at Middle Tennessee State University (advised by Dr. Xin Yang), and owner of Olene Software. My research applies graph ' +
     'signal processing and contrastive deep learning to fMRI, starting with autism classification on ABIDE.',
   // Full-time engineering began in October 2022; the site shows a live clock from here.
   careerStart: CAREER_START,
@@ -75,7 +76,9 @@ export const experiences = [
     org: 'Middle Tennessee State University',
     start: '2019',
     end: 'Dec 2022',
-    summary: 'Double major with a minor in French. Built an 8-bit computer from logic gates in Logisim.',
+    summary:
+      'Double major with a Computer Science concentration and a minor in French: C++ (CSCI 1170, 2170), ' +
+      'assembly, digital logic and microprocessors. Built an 8-bit computer from logic gates in Logisim.',
     tags: ['Physics', 'Computer architecture'],
   },
   // Professional (full-time engineering since Oct 2022; Olene Software is personal: I own it)
