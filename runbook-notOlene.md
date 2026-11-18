@@ -8,17 +8,15 @@ Steps Claude already ran are listed under **Done** with what was checked, so not
 | # | Area | What | When | Time |
 |---|---|---|---|---|
 | 3 | Research | Request an MTSU HPC allocation with GPU access | In Progress (Nelson) | 5 min |
-| 4 | Research | Create the Python environment and check the GPU | Week 1 | 10 min |
-| 5 | Research | Accept the ABIDE terms, then download ABIDE I (two pipelines) | Week 1 | 20–40 min |
-| 6 | Research | Create the private code repository | Week 1 | 2 min |
+| 5 | Research | Register on NITRC and accept the ABIDE terms; tell Claude, who runs the download | Now | 10 min |
 | 7 | Research | Download ABIDE II raw scans and preprocess with DPARSF | Weeks 13–16 | hours (runs unattended) |
 
-Steps 1 and 2 are done (see **Done**); the numbers are kept so references to them stay valid.
+Steps 1, 2, 4 and 6 are done (see **Done**); the numbers are kept so references to them stay valid.
 
 The research plan these steps support is `/Users/nelsontorres/Desktop/research/contrastive-fmri/PROJECT1_PLAN.md`.
 
-Step 3 and the ABIDE terms in step 5 need you. Steps 4–6 I can run in a session when you say
-"start Project 1"; the commands are here so you can follow along or run them yourself.
+Research code: <https://github.com/Nelsontorresjr330/contrastive-fmri> (private; work on `dev`).
+Weekly lessons: `lessons/README.md` in that repo.
 
 ### 3. MTSU HPC allocation (In Progress)
 
@@ -27,59 +25,25 @@ weeks 1–8; the full experiment grid (5 seeds × 17 sites × ablations) needs t
 week 9. When it is approved, send me the login host, the GPU partition name and any storage
 quota, and I will add the cluster steps here and to section 9 of the plan.
 
-### 4. Python environment and GPU check (week 1)
+### 5. ABIDE terms, then the ABIDE I download
 
-Python 3.12 in a project venv (your system Python is 3.14; PyTorch and nilearn are most reliable on 3.12):
+ABIDE is free for non-commercial research, but each user must register and accept its terms.
 
-```bash
-cd /Users/nelsontorres/Desktop/research/contrastive-fmri
-uv venv --python 3.12 .venv
-source .venv/bin/activate
-uv pip install torch nilearn scikit-learn pandas pyyaml matplotlib
-python -c "import torch; print(torch.__version__, 'mps:', torch.backends.mps.is_available())"
-```
-
-Expected: a torch version and `mps: True` (the M4 Max GPU). Stop if `mps: False` and send me the
-output.
-
-### 5. Download ABIDE I (week 1)
-
-The Preprocessed Connectomes Project publishes ABIDE I already cleaned, as each brain region's
-signal over time. ABIDE is free but has data usage terms: register at NITRC (nitrc.org, ABIDE project)
-and accept them before downloading. This downloads about 870 quality-checked participants, CC200
-atlas (200 regions):
+1. Create a NITRC account at <https://www.nitrc.org/account/register.php>.
+2. Request access to the ABIDE project ("1000 Functional Connectomes / INDI", ABIDE) and accept
+   the data usage terms.
+3. Tell me it's done. I run the download (`python scripts/fetch_abide.py`, 20–40 min). If you
+   would rather run it yourself:
 
 ```bash
 cd /Users/nelsontorres/Desktop/research/contrastive-fmri
 source .venv/bin/activate
-python - <<'PY'
-from nilearn.datasets import fetch_abide_pcp
-d = fetch_abide_pcp(data_dir="data", pipeline="cpac", band_pass_filtering=True,
-                    global_signal_regression=False, derivatives=["rois_cc200"], quality_checked=True)
-print(len(d.rois_cc200), "subjects;", d.rois_cc200[0].shape, "time points x ROIs")
-print(d.phenotypic["SITE_ID"].value_counts().to_string())
-d2 = fetch_abide_pcp(data_dir="data", pipeline="dparsf", band_pass_filtering=True,
-                     global_signal_regression=False, derivatives=["rois_cc200"], quality_checked=True)
-print("dparsf:", len(d2.rois_cc200), "subjects")
-PY
+python scripts/fetch_abide.py
 ```
 
-Expected: about `871 subjects; (T, 200)` with T roughly 70–320, a list of about 17 sites with their
-participant counts, then `dparsf:` with a similar subject count (the same people through a second
-pipeline, used to test whether results survive a preprocessing change). Stop if either count is 0. ABIDE data is shared under a data usage agreement: it stays in `data/`
-and is never committed or uploaded.
-
-### 6. Create the private code repository (week 1)
-
-```bash
-cd /Users/nelsontorres/Desktop/research/contrastive-fmri
-printf 'data/\n.venv/\n__pycache__/\n*.pt\nruns/\n' > .gitignore
-git init -b main && git add .gitignore PROJECT1_PLAN.md && git commit -m "Project 1 plan"
-gh repo create Nelsontorresjr330/contrastive-fmri --private --source . --push
-git switch -c dev && git push -u origin dev
-```
-
-Expected: a URL for the new private repo. Work happens on `dev`, as in your other repos.
+Expected: a `cpac:` line with about 871 subjects (about 400 ASD, 470 TD) across about 17 sites
+with a per-site list, then a `dparsf:` line with a similar count. Stop if either count is 0. Data
+stays in `data/`, which git ignores and which is never uploaded.
 
 ### 7. ABIDE II preprocessing (weeks 13–16)
 
@@ -94,6 +58,8 @@ run. About 1,100 scans; plan on an overnight run.
 | Step | What was done | How it was checked |
 |---|---|---|
 | Runbook 1 | Website link on LinkedIn set to `https://nelsontorres.dev` | Nelson |
+| Runbook 4 | Python 3.12 venv in `contrastive-fmri/.venv`: torch 2.15, nilearn 0.14.1, scikit-learn 1.9.1 | `mps: True` (M4 Max GPU) |
+| Runbook 6 | Private repo `Nelsontorresjr330/contrastive-fmri` (`main` and `dev`), CI on every push and PR | CI green, 11 tests; week 1 lesson trains to 0.98 balanced accuracy |
 | Runbook 2 | Dr. Yang's five questions answered and recorded in section 9 of `PROJECT1_PLAN.md`: C-PAC main, DPARSF check and ABIDE II external test; LOSO primary; UCI HAR benchmark; no deadline; MTSU HPC | Nelson; plan updated |
 | Domain | `nelsontorres.dev` registered in Route 53 until 2027-11-18, auto-renew and privacy protection on, same personal contact as nelsonandgrace.com. Hosted zone `Z029417718HFE5O4F6CLQ` | Registration `SUCCESSFUL`; status `ACTIVE`; contact verification `DONE` (no email to answer) |
 | Config | `infra/cdk/cdk.json` points at the domain and zone | `cdk synth` |
