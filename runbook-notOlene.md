@@ -7,42 +7,25 @@ Steps Claude already ran are listed under **Done** with what was checked, so not
 
 | # | Area | What | When | Time |
 |---|---|---|---|---|
-| 1 | Portfolio | Update the website link on LinkedIn | Now | 2 min |
-| 2 | Research | Send Dr. Yang the five open questions | Now | 5 min |
-| 3 | Research | Ask for an MTSU HPC GPU allocation | Now (takes days to approve) | 5 min |
+| 3 | Research | Request an MTSU HPC allocation with GPU access | In Progress (Nelson) | 5 min |
 | 4 | Research | Create the Python environment and check the GPU | Week 1 | 10 min |
-| 5 | Research | Download ABIDE I (preprocessed ROI time series) | Week 1 | 10–20 min |
+| 5 | Research | Accept the ABIDE terms, then download ABIDE I (two pipelines) | Week 1 | 20–40 min |
 | 6 | Research | Create the private code repository | Week 1 | 2 min |
 | 7 | Research | Download ABIDE II raw scans and preprocess with DPARSF | Weeks 13–16 | hours (runs unattended) |
 
+Steps 1 and 2 are done (see **Done**); the numbers are kept so references to them stay valid.
+
 The research plan these steps support is `/Users/nelsontorres/Desktop/research/contrastive-fmri/PROJECT1_PLAN.md`.
 
-Steps 2, 3 and the ABIDE terms in step 5 need you. Steps 4–6 I can run in a session when you say
+Step 3 and the ABIDE terms in step 5 need you. Steps 4–6 I can run in a session when you say
 "start Project 1"; the commands are here so you can follow along or run them yourself.
 
-### 1. Update links to the site
+### 3. MTSU HPC allocation (In Progress)
 
-LinkedIn → Edit intro → Website: `https://nelsontorres.dev`. The résumé PDF in `public/Resume.pdf`
-can point there too. Old links (`nelsontorresjr330.github.io/...`) keep working: they forward to the
-same path on nelsontorres.dev.
-
-### 2. Send Dr. Yang the five open questions
-
-Their answers fix choices the code depends on. Paste into an email:
-
-1. ABIDE II: run both datasets through DPARSF, or keep the preprocessed (PCP) data for ABIDE I?
-2. Main evaluation: leave-one-site-out, 10-fold cross-validation, or both?
-3. Weeks 3–4 practice benchmark: CIFAR-10 (the standard SimCLR check) or a time-series dataset?
-4. Target venue and deadline.
-5. GPU compute: MTSU HPC allocation, or another resource?
-
-Write the answers into section 9 of `PROJECT1_PLAN.md` when they come back.
-
-### 3. Ask for MTSU HPC GPU time
-
-The M4 Max is enough for development; the full experiment grid (5 seeds × 17+ sites × ablations)
-needs a GPU cluster. Ask MTSU research computing (or Dr. Yang, if the lab has an allocation) for an
-account with GPU access. Nothing to run yet; note the login host and partition name in the plan.
+You are requesting it from MTSU. Ask for an account with GPU access. The laptop (M4 Max) covers
+weeks 1–8; the full experiment grid (5 seeds × 17 sites × ablations) needs the cluster from about
+week 9. When it is approved, send me the login host, the GPU partition name and any storage
+quota, and I will add the cluster steps here and to section 9 of the plan.
 
 ### 4. Python environment and GPU check (week 1)
 
@@ -75,11 +58,15 @@ d = fetch_abide_pcp(data_dir="data", pipeline="cpac", band_pass_filtering=True,
                     global_signal_regression=False, derivatives=["rois_cc200"], quality_checked=True)
 print(len(d.rois_cc200), "subjects;", d.rois_cc200[0].shape, "time points x ROIs")
 print(d.phenotypic["SITE_ID"].value_counts().to_string())
+d2 = fetch_abide_pcp(data_dir="data", pipeline="dparsf", band_pass_filtering=True,
+                     global_signal_regression=False, derivatives=["rois_cc200"], quality_checked=True)
+print("dparsf:", len(d2.rois_cc200), "subjects")
 PY
 ```
 
-Expected: about `871 subjects; (T, 200)` with T roughly 70–320, then a list of about 17 sites with
-their participant counts. ABIDE data is shared under a data usage agreement: it stays in `data/`
+Expected: about `871 subjects; (T, 200)` with T roughly 70–320, a list of about 17 sites with their
+participant counts, then `dparsf:` with a similar subject count (the same people through a second
+pipeline, used to test whether results survive a preprocessing change). Stop if either count is 0. ABIDE data is shared under a data usage agreement: it stays in `data/`
 and is never committed or uploaded.
 
 ### 6. Create the private code repository (week 1)
@@ -97,7 +84,7 @@ Expected: a URL for the new private repo. Work happens on `dev`, as in your othe
 ### 7. ABIDE II preprocessing (weeks 13–16)
 
 ABIDE II has no preprocessed release, so it goes through the same DPARSF pipeline used for the ADNI
-project (MATLAB R2026a, DPABI and SPM12 are already installed under
+project, with settings matched to PCP's DPARSF output from step 5 (MATLAB R2026a, DPABI and SPM12 are already installed under
 `~/Desktop/research/alzheimers-rsfmri-graph-theory/toolboxes`). I will write the download and
 batch scripts when we get there; the step for you will be starting the MATLAB batch and letting it
 run. About 1,100 scans; plan on an overnight run.
@@ -106,6 +93,8 @@ run. About 1,100 scans; plan on an overnight run.
 
 | Step | What was done | How it was checked |
 |---|---|---|
+| Runbook 1 | Website link on LinkedIn set to `https://nelsontorres.dev` | Nelson |
+| Runbook 2 | Dr. Yang's five questions answered and recorded in section 9 of `PROJECT1_PLAN.md`: C-PAC main, DPARSF check and ABIDE II external test; LOSO primary; UCI HAR benchmark; no deadline; MTSU HPC | Nelson; plan updated |
 | Domain | `nelsontorres.dev` registered in Route 53 until 2027-11-18, auto-renew and privacy protection on, same personal contact as nelsonandgrace.com. Hosted zone `Z029417718HFE5O4F6CLQ` | Registration `SUCCESSFUL`; status `ACTIVE`; contact verification `DONE` (no email to answer) |
 | Config | `infra/cdk/cdk.json` points at the domain and zone | `cdk synth` |
 | Deploy role | `Portfolio-DeployIdentity` stack: role `GitHubActions-Portfolio-Deploy`, trusted only by this repo's `dev` and `prod` environments | CloudFormation `CREATE_COMPLETE` |
