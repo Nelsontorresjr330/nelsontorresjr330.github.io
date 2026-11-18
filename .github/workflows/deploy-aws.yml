@@ -1,0 +1,96 @@
+name: Deploy (AWS)
+
+# dev push -> dev.<domain>; merged dev -> main PR -> <domain>.
+# Does nothing until the repo variable AWS_DEPLOY_ROLE_ARN is set (runbook-notOlene.md, part 5).
+on:
+  push:
+    branches: [dev, main]
+    paths-ignore: ['docs/**'] # the GitHub Pages workflow commits docs/ to main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: deploy-aws-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    if: vars.AWS_DEPLOY_ROLE_ARN != '' && (github.ref_name == 'dev' || github.ref_name == 'main')
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    env:
+      STAGE: ${{ github.ref_name == 'main' && 'Prod' || 'Dev' }}
+      AWS_REGION: us-east-2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gate (prod ships only from a merged dev -> main PR)
+        if: github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+            --jq '[.[] | select(.merged_at != null and .head.ref == "dev" and .base.ref == "main")] | length')
+          if [ "$n" -lt 1 ]; then echo "::error::Prod deploys only from a merged dev -> main PR."; exit 1; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Build site
+        run: npm run build
+        env:
+          # Same-origin: CloudFront proxies /api/laplacian-glm/* to the demo API, so no CORS.
+          REACT_APP_GLM_API_URL: /api/laplacian-glm
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: CDK deploy
+        working-directory: infra/cdk
+        run: |
+          npm ci
+          npx cdk deploy "Portfolio-Certificates-$STAGE" "Portfolio-Site-$STAGE" \
+            --exclusively --require-approval never --concurrency 2
+
+      - name: Read stack outputs
+        run: |
+          out() { aws cloudformation describe-stacks --stack-name "Portfolio-Site-$STAGE" \
+            --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+          echo "BUCKET=$(out BucketName)" >> "$GITHUB_ENV"
+          echo "DISTRIBUTION=$(out DistributionId)" >> "$GITHUB_ENV"
+          echo "SITE_URL=$(out SiteUrl)" >> "$GITHUB_ENV"
+
+      - name: Upload site
+        run: |
+          # Hashed assets are immutable; old ones are kept so open tabs keep working.
+          aws s3 sync build/assets "s3://$BUCKET/assets" --cache-control "public,max-age=31536000,immutable"
+          aws s3 sync build "s3://$BUCKET" --delete --exclude "assets/*" \
+            --cache-control "public,max-age=300"
+          aws s3 cp build/index.html "s3://$BUCKET/index.html" --cache-control "no-cache"
+          aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION" --paths "/*" --query Invalidation.Id --output text
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          has() { grep -i -- "$1" > /dev/null; }   # reads all input, so pipefail never sees SIGPIPE
+          for i in $(seq 1 20); do curl -fsS "$SITE_URL/" | has 'id="root"' && break || sleep 6; done
+          echo "home page";            curl -fsS "$SITE_URL/" | has 'id="root"'
+          echo "React route";          curl -fsS "$SITE_URL/research/laplacian-glm" | has 'id="root"'
+          echo "Laplacian demo API";   curl -sS -D - -o /dev/null "$SITE_URL/api/laplacian-glm/status/smoke-test" | has '^apigw-requestid'
+          if [ "$STAGE" = "Prod" ]; then
+            host="${SITE_URL#https://}"
+            echo "www -> apex";        curl -sS -D - -o /dev/null "https://www.$host/work" | has "^location: https://$host/work"
+          fi
+          echo "old path 301";       curl -sS -D - -o /dev/null "$SITE_URL/work" | has "^location: /professional"
+          echo "Smoke test passed for $SITE_URL"

@@ -1,0 +1,19 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/portfolio.ts",
+  "context": {
+    "domain": "nelsontorres.dev",
+    "hostedZoneId": "Z029417718HFE5O4F6CLQ",
+    "githubRepo": "Nelsontorresjr330/nelsontorresjr330.github.io",
+    "demoApis": {
+      "laplacian-glm": "osxigbaria.execute-api.us-east-1.amazonaws.com"
+    },
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
+    "@aws-cdk/aws-s3:createDefaultLoggingPolicy": true,
+    "@aws-cdk/core:target-partitions": [
+      "aws"
+    ],
+    "@aws-cdk/core:defaultCrossStackReferences": "strong"
+  }
+}

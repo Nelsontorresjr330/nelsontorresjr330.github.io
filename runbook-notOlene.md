@@ -1,0 +1,91 @@
+# runbook-notOlene: everything Nelson runs (non-Olene work)
+
+What a person still has to do for the portfolio, the research demos and Ph.D. work, in order.
+Steps Claude already ran are listed under **Done** with what was checked, so nothing is repeated.
+
+## Still to do
+
+| # | What | Time |
+|---|---|---|
+| 1 | Answer the domain verification email, if one arrives | 1 min |
+| 2 | Update the website link on LinkedIn and anywhere else it appears | 2 min |
+| 3 | Set up Project 1 (PyTorch, ABIDE I) when the research work starts | 15 min |
+
+### 1. Domain verification email (only if one arrives)
+
+ICANN requires the registrant email on a new domain to be confirmed. Route 53 sends the message from
+`noreply@registrar.amazon.com` (or Gandi/Amazon Registrar). If it lands in your inbox, click the link
+within **15 days**, or the domain is suspended. Check the status any time:
+
+```bash
+cd ~/Desktop/"Git Repos"/nelsontorresjr330.github.io
+aws route53domains get-domain-detail --region us-east-1 --domain-name nelsontorres.dev --query '{status:StatusList,expires:ExpirationDate}' --output json
+```
+
+Expected: a status list without `clientHold`. If you see `clientHold`, the email hasn't been
+confirmed yet: resend it with
+`aws route53domains resend-contact-reachability-email --region us-east-1 --domain-name nelsontorres.dev`.
+
+### 2. Update links to the site
+
+LinkedIn → Edit intro → Website: `https://nelsontorres.dev`. The résumé PDF in `public/Resume.pdf`
+can point there too. Old links (`nelsontorresjr330.github.io/...`) keep working: they forward to the
+same path on nelsontorres.dev.
+
+### 3. Project 1 setup (PyTorch and ABIDE I)
+
+Python 3.12 in a project venv (PyTorch support for your system Python 3.14 can lag):
+
+```bash
+cd ~/Desktop/research/contrastive-fmri
+uv venv --python 3.12 .venv
+source .venv/bin/activate
+uv pip install torch nilearn scikit-learn pandas pyyaml
+python -c "import torch; print(torch.__version__, 'mps:', torch.backends.mps.is_available())"
+```
+
+Expected: a torch version and `mps: True` (the M4 Max GPU). Stop if `mps: False`.
+
+```bash
+cd ~/Desktop/research/contrastive-fmri
+source .venv/bin/activate
+python - <<'PY'
+from nilearn.datasets import fetch_abide_pcp
+d = fetch_abide_pcp(data_dir="data", pipeline="cpac", band_pass_filtering=True,
+                    global_signal_regression=False, derivatives=["rois_cc200"], quality_checked=True)
+print(len(d.rois_cc200), "subjects;", d.rois_cc200[0].shape, "time points x ROIs")
+PY
+printf 'data/\n.venv/\n' > .gitignore
+```
+
+Expected: about `871 subjects; (T, 200)`, T roughly 70–320. Data stays in `data/` and is never
+committed (ABIDE data usage agreement).
+
+## Done (2026-11-18)
+
+| Step | What was done | How it was checked |
+|---|---|---|
+| Domain | `nelsontorres.dev` registered in Route 53 for 1 year, auto-renew and privacy protection on, same personal contact as nelsonandgrace.com. Hosted zone `Z029417718HFE5O4F6CLQ` | Registration operation `SUCCESSFUL` |
+| Config | `infra/cdk/cdk.json` points at the domain and zone | `cdk synth` |
+| Deploy role | `Portfolio-DeployIdentity` stack: role `GitHubActions-Portfolio-Deploy`, trusted only by this repo's `dev` and `prod` environments | CloudFormation `CREATE_COMPLETE` |
+| GitHub | Environments `dev` (branch `dev` only) and `prod` (branch `main` only); repo variable `AWS_DEPLOY_ROLE_ARN` | `gh variable list` |
+| Site stacks | `Portfolio-Certificates-{Dev,Prod}`, `Portfolio-Site-{Dev,Prod}`: certificates, S3, CloudFront, DNS | CloudFormation status; smoke tests below |
+| Demo API limit | Laplacian API stage throttled to 5 req/s, bursts of 10 | `DefaultRouteSettings` on the stage |
+| Dev deploy | Push to `dev` → `deploy-aws.yml` → `https://dev.nelsontorres.dev` | Workflow smoke test (pages, demo API, old-path 301) |
+| Prod deploy | `dev` → `main` PR merged → `https://nelsontorres.dev` | Workflow smoke test plus `www` redirect |
+| GitHub Pages | `nelsontorresjr330.github.io` forwards every path to nelsontorres.dev | `curl` of an old path |
+
+## How it ships from now on
+
+| Branch | Goes to |
+|---|---|
+| `dev` | `https://dev.nelsontorres.dev` (not indexed by search engines) |
+| `main`, through a merged `dev` → `main` PR only | `https://nelsontorres.dev` (`www.` redirects to it) |
+
+## Rollback
+
+| If | Do |
+|---|---|
+| A prod deploy is bad | Revert the change on `dev` and merge again; prod's S3 bucket is versioned, so single files can also be restored in the console |
+| The demo API throttling blocks real use | `aws apigatewayv2 update-stage --region us-east-1 --api-id osxigbaria --stage-name '$default' --default-route-settings '{"DetailedMetricsEnabled":false}'` |
+| The github.io forwarding must be undone | Revert the "Forward nelsontorresjr330.github.io" commit on `dev` and merge; it restores the Pages workflow |

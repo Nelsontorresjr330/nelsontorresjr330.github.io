@@ -1,0 +1,44 @@
+name: CI
+
+# Every test the repo has, on each PR and before each AWS deploy (deploy-aws.yml calls this).
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Unit and page tests
+        run: npm test
+      - name: Build site
+        run: npm run build
+
+  infra:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/cdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: infra/cdk/package-lock.json
+      - run: npm ci
+      - name: CloudFront function and stack tests
+        run: npm test
+      - name: Typecheck
+        run: npx tsc -p .
+      - name: Synth
+        run: npx cdk synth -c synthOnly=true -q

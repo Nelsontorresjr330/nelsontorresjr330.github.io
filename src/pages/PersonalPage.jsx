@@ -1,65 +1,84 @@
 import React, { useState } from 'react';
-
-const photos = [
-  '/PersonalImages/InTree.JPG',
-  '/PersonalImages/OnBeach.JPG',
-  '/PersonalImages/InJungle.JPG'
-];
+import { INTERESTS, OLENE_APPS, OLENE_STATUS, PHOTOS } from '../content/site';
 
 export default function PersonalPage() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const prevPhoto = () =>
-    setCurrentIndex((currentIndex - 1 + photos.length) % photos.length);
-  const nextPhoto = () =>
-    setCurrentIndex((currentIndex + 1) % photos.length);
+  const [appName, setAppName] = useState(OLENE_APPS[0].name);
+  const [photo, setPhoto] = useState(0);
+  const app = OLENE_APPS.find((a) => a.name === appName);
+  const status = OLENE_STATUS[app.status];
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
-      <h2 className="text-3xl font-bold">About Me</h2>
-      <div className="space-y-4">
-        <p>
-          Hi, I’m Nelson Torres — a software engineer passionate about crafting performant, user-friendly web applications.
-        </p>
-        <p>
-          Beyond coding, my hobbies include : 3D printing / tinkering with electronics, travelling / spending time with friends & family and playing video games & sports, notably League of Legends and Soccer.
-        </p>
-      </div>
+    <div className="pb-24">
+      <section className="mx-auto max-w-[1200px] px-6 pt-16 pb-4">
+        <h1 className="m-0 text-[clamp(36px,4.5vw,52px)] leading-tight font-bold tracking-[-0.035em] text-ink">Personal</h1>
+      </section>
 
-      <div className="relative mt-8 flex justify-center">
-        <div className="w-[70%] aspect-square overflow-hidden rounded-lg shadow-md">
-          <img
-            src={photos[currentIndex]}
-            alt="Nelson Torres"
-            className="w-full h-full object-cover"
-          />
+      <section className="mx-auto max-w-[1200px] px-6 py-6">
+        <div className="rounded-[20px] border border-line-strong bg-panel p-7">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="m-0 text-[26px] font-bold tracking-[-0.02em] text-ink">Olene Software LLC</h2>
+              <p className="mt-1.5 mb-0 max-w-[600px] text-[15px] leading-relaxed text-muted">Owner. Software for small businesses and the trades.</p>
+            </div>
+            <a href="https://olenesoft.com" target="_blank" rel="noopener noreferrer" className="text-sm text-per-soft no-underline">olenesoft.com ↗</a>
+          </div>
+
+          <div role="tablist" aria-label="Olene apps" className="mt-6 flex flex-wrap gap-1.5">
+            {OLENE_APPS.map((a) => {
+              const on = a.name === appName;
+              const st = OLENE_STATUS[a.status];
+              return (
+                <button
+                  key={a.name}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setAppName(a.name)}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-[10px] border border-solid px-3.5 text-sm"
+                  style={{ borderColor: on ? '#fb923c' : '#23232a', background: on ? '#1c1209' : 'transparent', color: on ? 'var(--color-ink)' : 'var(--color-soft)', fontWeight: on ? 600 : 500 }}
+                >
+                  {a.name}
+                  <span className="font-mono text-[10px] uppercase" style={{ color: st.color }}>{st.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div role="tabpanel" aria-label={app.name} className="mt-5 flex flex-wrap items-start gap-6">
+            <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3">
+              <h3 className="m-0 text-[22px] font-bold tracking-[-0.02em] text-ink">{app.name}</h3>
+              <p className="m-0 font-mono text-[11px] uppercase" style={{ color: status.color }}>{status.label}</p>
+              <p className="m-0 text-[15px] leading-relaxed text-soft">{app.what}</p>
+              <ul className="m-0 list-disc flex flex-col gap-1 pl-[18px] text-sm leading-normal text-muted">
+                {app.points.map((p) => <li key={p}>{p}</li>)}
+              </ul>
+              <div className="flex flex-wrap gap-1.5">
+                {app.tags.map((t) => <span key={t} className="rounded-md bg-raised px-2 py-0.5 font-mono text-[11px] text-soft">{t}</span>)}
+              </div>
+              <a href={app.href} target="_blank" rel="noopener noreferrer" className="text-sm text-per-soft no-underline">{app.name} on olenesoft.com ↗</a>
+            </div>
+            <figure className="m-0 min-w-0 flex-[2_1_460px]">
+              <img src={app.shot} alt={`${app.name} screenshot`} className="block w-full rounded-xl border border-line-strong" />
+              <figcaption className="mt-2 text-xs text-muted">{app.caption}</figcaption>
+            </figure>
+          </div>
         </div>
+      </section>
 
-        <button
-          onClick={prevPhoto}
-          className="absolute top-1/2 left-[15%] transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition"
-        >
-          ‹
-        </button>
-
-        <button
-          onClick={nextPhoto}
-          className="absolute top-1/2 right-[15%] transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition"
-        >
-          ›
-        </button>
-
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
-          {photos.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`w-2 h-2 rounded-full ${
-                idx === currentIndex ? 'bg-blue-400' : 'bg-gray-500'
-              }`}
-            />
-          ))}
+      <section className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-7 px-6 py-6">
+        <div className="flex-[1_1_280px]">
+          <h2 className="m-0 text-[22px] font-semibold tracking-[-0.01em] text-ink">Interests</h2>
+          <p className="mt-2 mb-0 text-[15px] leading-relaxed text-muted">{INTERESTS}</p>
+          <div className="mt-4 flex items-center gap-2">
+            <button type="button" aria-label="Previous photo" onClick={() => setPhoto((photo + PHOTOS.length - 1) % PHOTOS.length)} className="h-11 w-11 rounded-full border border-solid border-[#27272a] bg-transparent text-lg text-ink">←</button>
+            <button type="button" aria-label="Next photo" onClick={() => setPhoto((photo + 1) % PHOTOS.length)} className="h-11 w-11 rounded-full border border-solid border-[#27272a] bg-transparent text-lg text-ink">→</button>
+            <span className="ml-2 font-mono text-xs text-muted">{photo + 1} / {PHOTOS.length}</span>
+          </div>
         </div>
-      </div>
+        <div className="aspect-[4/3] min-w-0 flex-[1.4_1_420px] overflow-hidden rounded-[18px] border border-line">
+          <img src={PHOTOS[photo].src} alt={PHOTOS[photo].alt} className="block h-full w-full object-cover" />
+        </div>
+      </section>
     </div>
   );
 }
