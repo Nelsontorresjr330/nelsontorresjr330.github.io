@@ -175,8 +175,8 @@ export const projects = [
     area: 'academic',
     title: 'Self-supervised contrastive learning for ASD classification',
     summary:
-      'A 1D-CNN encoder pretrained with a contrastive objective on resting-state fMRI time series from ABIDE I and II, ' +
-      'compared with classical ML and supervised deep learning under site-held-out validation.',
+      'A 1D-CNN encoder trained SimCLR-style (NT-Xent) on two views of each participant’s resting-state ROI signals ' +
+      'from ABIDE, compared with FC + SVM/RF and a supervised CNN, with site-wise and motion analyses.',
     status: 'in-progress',
     year: '2026',
     art: 'timeseries',
@@ -190,11 +190,12 @@ export const projects = [
     area: 'academic',
     title: 'Graph contrastive learning on functional brain networks',
     summary:
-      'GCN and GAT encoders trained with graph contrastive learning on functional connectivity networks.',
+      'GCN and GAT encoders with a graph-level contrastive objective on weighted connectivity graphs, using views ' +
+      'that keep signed connections intact.',
     status: 'planned',
     year: '2027',
     art: 'graph',
-    tags: ['GNN', 'GraphCL', 'Connectomics'],
+    tags: ['GNN', 'GAT', 'Connectomics'],
     href: '/research/graph-contrastive',
     cta: 'Planned',
   },
@@ -203,7 +204,8 @@ export const projects = [
     area: 'academic',
     title: 'Dynamic functional connectivity with temporal contrastive learning',
     summary:
-      'Temporal contrastive learning over sliding-window connectivity to capture how brain networks change during a scan.',
+      'Temporal CNN, GRU or Transformer encoders learning from two temporal views of each subject, with objectives ' +
+      'that down-weight unstable short-window connectivity.',
     status: 'planned',
     year: '2027',
     art: 'dynamic',
