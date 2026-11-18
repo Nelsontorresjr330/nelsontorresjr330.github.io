@@ -2,23 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Nelson Torres</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nelson Torres has moved</title>
+  <link rel="canonical" href="https://nelsontorres.dev/">
+  <meta name="robots" content="noindex">
+  <meta http-equiv="refresh" content="0; url=https://nelsontorres.dev/">
   <script>
-    // GitHub Pages SPA redirect trick.
-    // When GH Pages 404s on a client-side route, this page encodes the path
-    // as a query string and sends the browser back to index.html, which then
-    // restores it via the script in index.html.
-    // segmentCount = 0 for user/org pages (username.github.io with no repo subpath)
-    var segmentCount = 0;
-    var l = window.location;
-    l.replace(
-      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-      l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?/' +
-      l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
-      (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-      l.hash
-    );
+    (function (l) {
+      l.replace(function redirectTarget(domain, { pathname, search, hash }) { return `https://${domain}${pathname || '/'}${search || ''}${hash || ''}`; }.call(null, "nelsontorres.dev", l));
+    })(window.location);
   </script>
+  <style>body{font:16px system-ui,sans-serif;margin:4rem auto;max-width:32rem;padding:0 1rem;color:#0f172a}</style>
 </head>
-<body></body>
+<body>
+  <p>This site has moved to <a href="https://nelsontorres.dev/">nelsontorres.dev</a>.</p>
+</body>
 </html>
