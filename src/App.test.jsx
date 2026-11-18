@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AppShell, ROUTES } from './App';
-import { HOVER_LEAVE_MS, HOVER_SWITCH_MS } from './pages/LandingPage';
+import { HOVER_LEAVE_MS } from './pages/LandingPage';
 
 function Where() {
   return <span data-testid="where">{useLocation().pathname}</span>;
@@ -85,37 +85,43 @@ describe('landing page (stack map)', () => {
     expect(panel.querySelector('.pointer-fine\\:line-clamp-4')).not.toBeNull();
   });
 
-  it('switches rows only after the pointer rests, so a hand on the border between two rows does not flash', () => {
-    // Regression (2026-11-18): resting on the Archera/Amazon border flipped the whole panel on
-    // every one-pixel tremor (39 flips in 40 moves), and moving across a heading flashed the
-    // instructions. Now: first item shows at once; switching waits HOVER_SWITCH_MS; leaving the
-    // map clears after HOVER_LEAVE_MS.
+  it('switches rows immediately, but jitter on the border between two rows changes nothing', () => {
+    // Regressions (2026-11-18): resting on the Archera/Amazon border flipped the panel on every
+    // one-pixel tremor (39 flips in 40 moves); a 90 ms hover delay fixed that but felt sluggish.
+    // Now: the outer HOVER_EDGE_PX of a row never switches; anywhere else switches at once.
     vi.useFakeTimers();
+    const rects = new Map();
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function rect() {
+      return rects.get(this) || { top: 0, bottom: 0, left: 0, right: 0, height: 0, width: 0, x: 0, y: 0 };
+    });
     try {
       renderAt('/');
       const archera = screen.getByRole('button', { name: /Archera · Software Developer/ });
       const amazon = screen.getByRole('button', { name: /Amazon · Senior Software Engineer/ });
+      rects.set(archera, { top: 100, bottom: 136, height: 36, left: 0, right: 300, width: 300, x: 0, y: 100 });
+      rects.set(amazon, { top: 136, bottom: 172, height: 36, left: 0, right: 300, width: 300, x: 0, y: 136 });
       const heading = screen.getAllByText('ACADEMIC').find((el) => el.tagName === 'P');
-      fireEvent.mouseMove(archera);
+
+      fireEvent.mouseMove(archera, { clientY: 118 });
       expect(screen.getByText('Jan 2026 – Present')).toBeInTheDocument();
-      // Jitter across the border: ten quick alternations, 10 ms apart. The panel must not change.
-      for (let i = 0; i < 10; i += 1) {
-        fireEvent.mouseMove(i % 2 ? archera : amazon);
-        act(() => { vi.advanceTimersByTime(10); });
+      // A resting hand on the border: one pixel either side, twenty times.
+      for (let i = 0; i < 20; i += 1) {
+        if (i % 2) fireEvent.mouseMove(archera, { clientY: 135 }); else fireEvent.mouseMove(amazon, { clientY: 137 });
         expect(screen.getByText('Jan 2026 – Present')).toBeInTheDocument();
       }
-      // Moving over a heading inside the map keeps the current item.
-      fireEvent.mouseOut(archera, { relatedTarget: heading });
-      expect(screen.queryByText(/Below are my experiences/)).toBeNull();
-      // Resting on Amazon switches after the short delay.
-      fireEvent.mouseMove(amazon);
-      act(() => { vi.advanceTimersByTime(HOVER_SWITCH_MS + 5); });
+      // A real move onto Amazon switches with no waiting.
+      fireEvent.mouseMove(amazon, { clientY: 150 });
       expect(screen.getByText('Jun 2025 – Jan 2026')).toBeInTheDocument();
-      // Leaving the map clears it after a moment.
+      // Crossing a heading inside the map keeps the current item.
+      fireEvent.mouseOut(amazon, { relatedTarget: heading });
+      expect(screen.queryByText(/Below are my experiences/)).toBeNull();
+      // Leaving the map clears it after a short grace period.
       fireEvent.mouseOut(amazon, { relatedTarget: document.body });
+      expect(screen.getByText('Jun 2025 – Jan 2026')).toBeInTheDocument();
       act(() => { vi.advanceTimersByTime(HOVER_LEAVE_MS + 5); });
       expect(screen.getByText(/Below are my experiences/)).toBeInTheDocument();
     } finally {
+      spy.mockRestore();
       vi.useRealTimers();
     }
   });

@@ -29,12 +29,12 @@ export function buildStackMap() {
 /** "Archera · Software Developer" -> "Archera" (phones, and lists of names). */
 export const shortLabel = (label) => label.split(' · ')[0];
 
-// Hover intent. Moving from one item to another waits briefly, and the outer few pixels of a row
-// don't count as entering it, so a hand resting on the border between two rows doesn't flip the
-// whole panel back and forth (measured 2026-11-18: 39 flips in 40 one-pixel jitters before this).
-export const HOVER_SWITCH_MS = 90;
-export const HOVER_LEAVE_MS = 150;
+// Hover hysteresis. The outer few pixels of a row don't count as entering it, so a hand resting on
+// the border between two rows doesn't flip the whole panel back and forth (measured 2026-11-18: 39
+// flips in 40 one-pixel jitters). Anywhere else, the switch is immediate: a time delay was tried
+// and felt sluggish (about 140 ms plus the fade). Leaving the map clears after a short grace period.
 export const HOVER_EDGE_PX = 3;
+export const HOVER_LEAVE_MS = 150;
 
 const link = (y1, y2) => `M0 ${y1}C100 ${y1} 100 ${y2} 200 ${y2}`;
 
@@ -47,27 +47,24 @@ export default function LandingPage() {
   const [sel, setSel] = useState(null);
   const [hover, setHover] = useState(null);
   const hoverRef = useRef(null);
-  const pendingRef = useRef(null);
   const timerRef = useRef(null);
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const commitHover = (id) => {
     clearTimeout(timerRef.current);
-    pendingRef.current = null;
+    if (hoverRef.current === id) return;
     hoverRef.current = id;
     setHover(id);
   };
-  // Pointer moved over a row: ignore its edges, switch at once if nothing is shown yet,
-  // otherwise only after the pointer has rested on the new row.
+  // Pointer moved over a row: switch immediately, except within the row's top and bottom edge,
+  // which keeps whatever is showing (so jitter across a border changes nothing).
   const pointerOver = (id) => (e) => {
-    if (id === hoverRef.current) { clearTimeout(timerRef.current); pendingRef.current = null; return; }
+    clearTimeout(timerRef.current); // back inside the map: cancel a pending clear
+    if (id === hoverRef.current) return;
     const r = e.currentTarget.getBoundingClientRect();
-    if (r.height > HOVER_EDGE_PX * 4 && (e.clientY - r.top < HOVER_EDGE_PX || r.bottom - e.clientY < HOVER_EDGE_PX)) return;
-    if (hoverRef.current === null) { commitHover(id); return; }
-    if (pendingRef.current === id) return;
-    clearTimeout(timerRef.current);
-    pendingRef.current = id;
-    timerRef.current = setTimeout(() => commitHover(id), HOVER_SWITCH_MS);
+    const inEdge = r.height > HOVER_EDGE_PX * 4 && (e.clientY - r.top < HOVER_EDGE_PX || r.bottom - e.clientY < HOVER_EDGE_PX);
+    if (inEdge && hoverRef.current !== null) return;
+    commitHover(id);
   };
   // Focus moving to another row in the map is a switch, not a clear (avoids a flash on click).
   const blurMap = (e) => {
@@ -76,8 +73,7 @@ export default function LandingPage() {
   };
   const pointerLeaveMap = () => {
     clearTimeout(timerRef.current);
-    pendingRef.current = null;
-    timerRef.current = setTimeout(() => commitHover(null), HOVER_LEAVE_MS);
+    timerRef.current = setTimeout(() => { hoverRef.current = null; setHover(null); }, HOVER_LEAVE_MS);
   };
   const act = hover || sel;
   const actWork = act && map.work[act];
@@ -175,7 +171,7 @@ export default function LandingPage() {
                       onMouseMove={pointerOver(w.id)}
                       onFocus={() => commitHover(w.id)}
                       onBlur={blurMap}
-                      className="flex h-9 w-full items-center justify-end gap-2.5 rounded-l-lg border-0 pl-2.5 text-right text-sm transition-opacity"
+                      className="flex h-9 w-full items-center justify-end gap-2.5 rounded-l-lg border-0 pl-2.5 text-right text-sm transition-opacity duration-75"
                       style={{ background: isAct ? '#16161c' : 'transparent', opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
                     >
                       <span className="min-w-0 truncate sm:hidden">{shortLabel(w.label)}</span>
@@ -208,7 +204,7 @@ export default function LandingPage() {
                       onMouseMove={pointerOver(t.id)}
                       onFocus={() => commitHover(t.id)}
                       onBlur={blurMap}
-                      className="flex h-9 w-full items-center gap-2.5 rounded-r-lg border-0 pr-2.5 text-left font-mono text-[13px] transition-opacity"
+                      className="flex h-9 w-full items-center gap-2.5 rounded-r-lg border-0 pr-2.5 text-left font-mono text-[13px] transition-opacity duration-75"
                       style={{ background: isAct ? '#0c1a24' : 'transparent', opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
                     >
                       <span className="-ml-1 h-[9px] w-[9px] flex-none rounded-full bg-aca-soft" style={{ boxShadow: '0 0 0 3px var(--color-ground)' }} />
