@@ -126,6 +126,33 @@ describe('landing page (stack map)', () => {
     }
   });
 
+  it('holds a clicked item while the pointer moves over other rows, until released', () => {
+    // Regression (2026-11-18): after the hover fixes, hovering other rows replaced a clicked item.
+    renderAt('/');
+    const archera = screen.getByRole('button', { name: /Archera · Software Developer/ });
+    const robotics = screen.getByRole('button', { name: /Amazon Robotics · Software Developer II/ });
+    fireEvent.click(archera);
+    expect(archera).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Held')).toBeInTheDocument();
+    // Hovering another row and a technology does not change the held panel.
+    fireEvent.mouseMove(robotics);
+    fireEvent.mouseMove(screen.getByRole('button', { name: /^Spark/ }));
+    expect(screen.getByText('Jan 2026 – Present')).toBeInTheDocument();
+    // Clicking another row moves the hold there.
+    fireEvent.click(robotics);
+    expect(screen.getByText('Jun 2024 – Jun 2025')).toBeInTheDocument();
+    expect(archera).toHaveAttribute('aria-pressed', 'false');
+    // Clicking it again releases it; hover takes over again.
+    fireEvent.click(robotics);
+    expect(screen.queryByText('Held')).toBeNull();
+    fireEvent.mouseMove(archera);
+    expect(screen.getByText('Jan 2026 – Present')).toBeInTheDocument();
+    // Esc releases too.
+    fireEvent.click(archera);
+    fireEvent.keyDown(archera, { key: 'Escape' });
+    expect(screen.queryByText('Held')).toBeNull();
+  });
+
   it('has no status or date column on the rows', () => {
     renderAt('/');
     expect(screen.getByRole('button', { name: /Archera · Software Developer/ })).not.toHaveTextContent('2026');

@@ -75,7 +75,9 @@ export default function LandingPage() {
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => { hoverRef.current = null; setHover(null); }, HOVER_LEAVE_MS);
   };
-  const act = hover || sel;
+  // A clicked item is held: it stays in the panel while the pointer moves over other rows, until it
+  // is clicked again (or Esc). Hover only previews when nothing is held.
+  const act = sel || hover;
   const actWork = act && map.work[act];
   const actTech = act && map.tech[act];
 
@@ -116,6 +118,7 @@ export default function LandingPage() {
                 <span style={{ color: AREAS[actWork.area].color }}>{AREAS[actWork.area].heading}</span>
                 <span className="text-faint">·</span>
                 <span className="rounded-full bg-raised px-2 py-0.5 tracking-normal text-body">{actWork.when}</span>
+                {sel && <span className="ml-auto font-sans text-xs tracking-normal text-muted"><span className="mr-1.5 rounded-full border border-solid border-line-strong px-2 py-0.5 font-mono text-[11px] text-body">Held</span>Click again or press Esc to release</span>}
               </p>
               <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
                 <span className="text-[17px] font-semibold text-ink">{actWork.label}</span>
@@ -135,6 +138,7 @@ export default function LandingPage() {
                 <span className="text-aca-soft">TECHNOLOGY</span>
                 <span className="text-faint">·</span>
                 <span className="rounded-full bg-raised px-2 py-0.5 tracking-normal text-body">Used In {USES[act].length}</span>
+                {sel && <span className="ml-auto font-sans text-xs tracking-normal text-muted"><span className="mr-1.5 rounded-full border border-solid border-line-strong px-2 py-0.5 font-mono text-[11px] text-body">Held</span>Click again or press Esc to release</span>}
               </p>
               <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
                 <span className="text-[17px] font-semibold text-ink">{actTech.label}</span>
@@ -151,6 +155,7 @@ export default function LandingPage() {
         <div
           data-testid="stack-map"
           onMouseLeave={pointerLeaveMap}
+          onKeyDown={(e) => { if (e.key === 'Escape') setSel(null); }}
           className="grid grid-cols-[minmax(0,1.25fr)_24px_minmax(0,1fr)] items-start sm:grid-cols-[minmax(0,1.15fr)_minmax(48px,1fr)_minmax(0,0.95fr)]"
         >
           <div>
@@ -171,8 +176,8 @@ export default function LandingPage() {
                       onMouseMove={pointerOver(w.id)}
                       onFocus={() => commitHover(w.id)}
                       onBlur={blurMap}
-                      className="flex h-9 w-full items-center justify-end gap-2.5 rounded-l-lg border-0 pl-2.5 text-right text-sm transition-opacity duration-75"
-                      style={{ background: isAct ? '#16161c' : 'transparent', opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
+                      className="flex h-9 w-full items-center justify-end gap-2.5 rounded-l-lg border-0 pl-2.5 text-right text-sm transition-opacity duration-75 hover:bg-white/[0.04]"
+                      style={{ background: isAct ? '#16161c' : undefined, opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
                     >
                       <span className="min-w-0 truncate sm:hidden">{shortLabel(w.label)}</span>
                       <span className="hidden min-w-0 truncate sm:inline">{w.label}</span>
@@ -204,8 +209,8 @@ export default function LandingPage() {
                       onMouseMove={pointerOver(t.id)}
                       onFocus={() => commitHover(t.id)}
                       onBlur={blurMap}
-                      className="flex h-9 w-full items-center gap-2.5 rounded-r-lg border-0 pr-2.5 text-left font-mono text-[13px] transition-opacity duration-75"
-                      style={{ background: isAct ? '#0c1a24' : 'transparent', opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
+                      className="flex h-9 w-full items-center gap-2.5 rounded-r-lg border-0 pr-2.5 text-left font-mono text-[13px] transition-opacity duration-75 hover:bg-white/[0.04]"
+                      style={{ background: isAct ? '#0c1a24' : undefined, opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
                     >
                       <span className="-ml-1 h-[9px] w-[9px] flex-none rounded-full bg-aca-soft" style={{ boxShadow: '0 0 0 3px var(--color-ground)' }} />
                       <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[12px] sm:text-[13px]">{t.label}</span>
