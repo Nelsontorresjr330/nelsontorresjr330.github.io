@@ -72,6 +72,18 @@ describe('landing page (stack map)', () => {
     expect(screen.getByText(/Used In 7/)).toBeInTheDocument();
   });
 
+  it('keeps the detail panel a fixed height for mouse users, so hovering never moves the rows', () => {
+    // Regression (2026-11-18): the panel resized with each item, shifting the rows under the
+    // cursor so hover flipped between two of them. The height must not depend on content.
+    renderAt('/');
+    const panel = screen.getByTestId('detail-panel');
+    for (const cls of ['pointer-fine:h-[216px]', 'sm:pointer-fine:h-[176px]', 'lg:pointer-fine:h-[150px]', 'pointer-fine:overflow-hidden']) {
+      expect(panel.className).toContain(cls);
+    }
+    fireEvent.mouseEnter(screen.getByRole('button', { name: /Archera · Software Developer/ }));
+    expect(panel.querySelector('.pointer-fine\\:line-clamp-4')).not.toBeNull();
+  });
+
   it('has no status or date column on the rows', () => {
     renderAt('/');
     expect(screen.getByRole('button', { name: /Archera · Software Developer/ })).not.toHaveTextContent('2026');

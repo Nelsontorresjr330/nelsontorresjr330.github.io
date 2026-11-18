@@ -65,7 +65,10 @@ export default function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-[1200px] px-6 pb-4">
-        <div aria-live="polite" className="flex min-h-[96px] flex-col justify-center gap-1.5 rounded-[14px] border border-line-strong bg-panel px-5 py-4">
+        {/* Fixed height for mouse and trackpad users on purpose: if this panel grew or shrank with
+            each item, the rows below would move under the cursor and hover would flip between two
+            rows (2026-11-18 bug). Touch screens don't hover, so they get the full text instead. */}
+        <div aria-live="polite" data-testid="detail-panel" className="flex min-h-[96px] flex-col justify-center gap-1.5 rounded-[14px] border border-line-strong bg-panel px-5 py-4 pointer-fine:h-[216px] pointer-fine:overflow-hidden sm:pointer-fine:h-[176px] lg:pointer-fine:h-[150px]">
           {!act && (
             <p className="m-0 text-[15px] leading-relaxed text-soft">
               Below are my experiences as a developer, linked to the technologies I used. Hover or select any item to view more.
@@ -80,7 +83,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
                 <span className="text-[17px] font-semibold text-ink">{actWork.label}</span>
-                <span className="min-w-0 flex-[1_1_360px] text-sm leading-normal text-muted">
+                <span className="min-w-0 pointer-fine:line-clamp-4 flex-[1_1_360px] text-sm leading-normal text-muted">
                   {actWork.summary}
                   {actWork.tech.length > 0 && ` Built with ${actWork.tech.map((t) => map.tech[t].label).join(', ')}.`}
                 </span>
@@ -99,7 +102,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
                 <span className="text-[17px] font-semibold text-ink">{actTech.label}</span>
-                <span className="min-w-0 flex-[1_1_360px] text-sm leading-normal text-muted">{USES[act].map((id) => shortLabel(map.work[id].label)).join(', ')}</span>
+                <span className="min-w-0 pointer-fine:line-clamp-4 flex-[1_1_360px] text-sm leading-normal text-muted">{USES[act].map((id) => shortLabel(map.work[id].label)).join(', ')}</span>
               </div>
             </>
           )}
