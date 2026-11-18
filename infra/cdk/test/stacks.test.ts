@@ -92,6 +92,13 @@ describe('site stacks', () => {
   });
 });
 
+describe('redirects', () => {
+  it('301s the retired site paths to their new pages', () => {
+    const cfg = loadConfig(new cdk.App({ context }));
+    expect(cfg.stages[1].redirects).toEqual({ '/work': '/professional', '/projects': '/personal', '/publications': '/academic' });
+  });
+});
+
 describe('deploy identity', () => {
   it('trusts only the repo\'s dev and prod environments', () => {
     const roles = t.identity.findResources('AWS::IAM::Role');

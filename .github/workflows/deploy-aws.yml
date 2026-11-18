@@ -51,10 +51,6 @@ jobs:
         env:
           # Same-origin: CloudFront proxies /api/laplacian-glm/* to the demo API, so no CORS.
           REACT_APP_GLM_API_URL: /api/laplacian-glm
-      - name: Build Storybook (dev only)
-        if: env.STAGE == 'Dev'
-        run: npm run build-storybook
-
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -79,12 +75,9 @@ jobs:
         run: |
           # Hashed assets are immutable; old ones are kept so open tabs keep working.
           aws s3 sync build/assets "s3://$BUCKET/assets" --cache-control "public,max-age=31536000,immutable"
-          aws s3 sync build "s3://$BUCKET" --delete --exclude "assets/*" --exclude "storybook/*" \
+          aws s3 sync build "s3://$BUCKET" --delete --exclude "assets/*" \
             --cache-control "public,max-age=300"
           aws s3 cp build/index.html "s3://$BUCKET/index.html" --cache-control "no-cache"
-          if [ "$STAGE" = "Dev" ]; then
-            aws s3 sync storybook-static "s3://$BUCKET/storybook" --delete --cache-control "public,max-age=300"
-          fi
           aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION" --paths "/*" --query Invalidation.Id --output text
 
       - name: Smoke test
@@ -98,7 +91,6 @@ jobs:
           if [ "$STAGE" = "Prod" ]; then
             host="${SITE_URL#https://}"
             echo "www -> apex";        curl -sS -D - -o /dev/null "https://www.$host/work" | has "^location: https://$host/work"
-          else
-            echo "Storybook";          curl -fsS "$SITE_URL/storybook/" | has 'storybook'
           fi
+          echo "old path 301";       curl -sS -D - -o /dev/null "$SITE_URL/work" | has "^location: /professional"
           echo "Smoke test passed for $SITE_URL"

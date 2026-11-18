@@ -1,57 +1,110 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AppShell, ROUTES } from './App';
 
-// Paths that are already public (linked from the paper, résumé and emails). Removing one
-// breaks a link someone has; move it with a redirect instead.
-const PUBLISHED_PATHS = ['/', '/work', '/projects', '/academic', '/publications', '/personal', '/research/laplacian-glm'];
+function Where() {
+  return <span data-testid="where">{useLocation().pathname}</span>;
+}
+
+function renderAt(path) {
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+  return render(<MemoryRouter initialEntries={[path]}><AppShell /><Where /></MemoryRouter>);
+}
+
+const CLOCK = /years, \d+ months and \d+ days of full-time engineering/;
 
 describe('routes', () => {
-  it('keeps every published path', () => {
-    const paths = ROUTES.map((r) => r.path);
-    for (const p of PUBLISHED_PATHS) expect(paths).toContain(p);
+  it('keeps the published demo path and the three section pages', () => {
+    expect(ROUTES.map((r) => r.path)).toEqual(['/', '/professional', '/academic', '/personal', '/research/laplacian-glm']);
   });
 
-  it.each(PUBLISHED_PATHS)('renders %s with the site header', (path) => {
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
-    render(
-      <MemoryRouter initialEntries={[path]}>
-        <AppShell />
-      </MemoryRouter>,
-    );
-    expect(screen.getAllByText('Nelson Torres').length).toBeGreaterThan(0);
-    vi.unstubAllGlobals();
+  it.each(['/', '/professional', '/academic', '/personal', '/research/laplacian-glm'])('renders %s with the header', (path) => {
+    renderAt(path);
+    expect(screen.getByRole('link', { name: 'Nelson Torres' })).toBeInTheDocument();
+  });
+
+  it.each([['/work', '/professional'], ['/projects', '/personal'], ['/publications', '/academic']])('sends %s to %s', (from, to) => {
+    renderAt(from);
+    expect(screen.getByTestId('where')).toHaveTextContent(to);
+  });
+
+  it('shows a not-found page for unknown paths', () => {
+    renderAt('/nope');
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+  });
+
+  it('orders the nav Professional, Academic, Personal', () => {
+    renderAt('/');
+    const nav = screen.getByRole('navigation', { name: 'Sections' });
+    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Professional', 'Academic', 'Personal']);
+  });
+
+  it('shows the career clock on the Professional page only', () => {
+    for (const path of ['/', '/academic', '/personal', '/research/laplacian-glm']) {
+      const { unmount } = renderAt(path);
+      expect(screen.queryByLabelText(CLOCK), path).toBeNull();
+      unmount();
+    }
+    renderAt('/professional');
+    expect(screen.getByLabelText(CLOCK)).toBeInTheDocument();
   });
 });
 
-describe('current content', () => {
-  function renderAt(path) {
-    render(
-      <MemoryRouter initialEntries={[path]}>
-        <AppShell />
-      </MemoryRouter>,
-    );
-  }
-
-  it('says Archera on the home page, with a live career clock instead of a fixed year count', () => {
+describe('landing page (stack map)', () => {
+  it('opens with instructions, not counts', () => {
     renderAt('/');
-    expect(screen.getByText(/Software Developer at Archera/)).toBeInTheDocument();
-    expect(screen.queryByText(/SDE3 with Amazon/)).toBeNull();
-    expect(screen.queryByText('3+')).toBeNull();
-    expect(screen.getByLabelText(/years, \d+ months and \d+ days of full-time engineering/)).toBeInTheDocument();
+    expect(screen.getByText(/Below are my experiences as a developer/)).toBeInTheDocument();
+    expect(screen.queryByText(/Technologies$/)).toBeNull();
   });
 
-  it('lists Archera first on the work page and ends the Amazon role', () => {
-    renderAt('/work');
-    const roles = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
-    expect(roles[0]).toBe('Software Developer, Archera');
-    expect(screen.getByText(/Jun 2025 – Jan 2026/)).toBeInTheDocument();
+  it('shows the date range at the top of the detail when a role is selected', () => {
+    renderAt('/');
+    fireEvent.click(screen.getByRole('button', { name: /Archera · Software Developer/ }));
+    expect(screen.getByText('Jan 2026 – Present')).toBeInTheDocument();
+    expect(screen.getByText(/Built with Python, TypeScript/)).toBeInTheDocument();
   });
 
-  it('puts PayClear under Olene Software on the personal projects page', () => {
-    renderAt('/projects');
-    expect(screen.getByText(/Olene Software LLC \(owner\): PayClear/)).toBeInTheDocument();
+  it('shows how many items use a technology when it is selected', () => {
+    renderAt('/');
+    fireEvent.click(screen.getByRole('button', { name: /^AWS CDK/ }));
+    expect(screen.getByText(/Used In 7/)).toBeInTheDocument();
+  });
+
+  it('has no status or date column on the rows', () => {
+    renderAt('/');
+    expect(screen.getByRole('button', { name: /Archera · Software Developer/ })).not.toHaveTextContent('2026');
+  });
+});
+
+describe('professional page', () => {
+  it('dims roles that did not use a selected skill and says where it was used', () => {
+    renderAt('/professional');
+    fireEvent.click(screen.getByRole('button', { name: 'SQLAlchemy' }));
+    expect(screen.getByText('SQLAlchemy · Used At Archera')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /IPro Systems/ })).toHaveStyle({ opacity: '0.3' });
+  });
+});
+
+describe('academic page', () => {
+  it('lists only the Laplacian GLM under research, and shows degree coursework on select', () => {
+    renderAt('/academic');
+    expect(screen.queryByText(/Contrastive Learning for ASD/)).toBeNull();
+    expect(screen.queryByText(/Alzheimer/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /M\.S\., Computer Science/ }));
+    expect(screen.getByText(/Foundations of Machine Learning \(CS 5262\)/)).toBeInTheDocument();
+  });
+});
+
+describe('personal page', () => {
+  it('switches apps and their screenshots, with no tagline', () => {
+    renderAt('/personal');
+    expect(screen.queryByText(/one Olene account/)).toBeNull();
+    expect(screen.queryByText(/which I own and operate/)).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: /LibroCost/ }));
+    expect(screen.getByAltText('LibroCost screenshot')).toHaveAttribute('src', '/images/olene/librocost.png');
+    expect(screen.getByRole('tab', { name: /LibroCost/ })).toHaveTextContent('Available');
+    expect(screen.getByText('Travel, soccer, League of Legends, 3D printing and electronics.')).toBeInTheDocument();
   });
 });

@@ -22,8 +22,6 @@ jobs:
         run: npm test
       - name: Build site
         run: npm run build
-      - name: Build Storybook
-        run: npm run build-storybook
 
   infra:
     runs-on: ubuntu-latest

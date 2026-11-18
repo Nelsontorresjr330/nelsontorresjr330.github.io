@@ -3,7 +3,7 @@
 Personal site with academic, professional and personal work, plus live demos of my Ph.D.
 research (the Laplacian-regularized GLM simulation today; the contrastive-learning projects next).
 
-React 19, Vite, Tailwind 4, Storybook. Hosted on S3 and CloudFront with CDK (`infra/cdk`), the
+React 19, Vite, Tailwind 4. Hosted on S3 and CloudFront with CDK (`infra/cdk`), the
 same way as the Olene apps. Until cutover it is also published to GitHub Pages
 (`nelsontorresjr330.github.io`).
 
@@ -13,7 +13,6 @@ same way as the Olene apps. Until cutover it is also published to GitHub Pages
 npm install
 npm run dev               # http://localhost:3000
 npm test                  # page, content and redirect tests (Vitest)
-npm run storybook         # design concepts, http://localhost:6006
 ```
 
 The Laplacian demo calls the API in `REACT_APP_GLM_API_URL` (`.env`). On AWS the build sets it to
@@ -31,9 +30,8 @@ npx cdk synth -c synthOnly=true -q        # synth without a hosted zone
 
 | Branch | Deploys to | Workflow |
 |---|---|---|
-| `dev` | `dev.<domain>` (and `/storybook/`) | `deploy-aws.yml` |
-| `main` (merged `dev` → `main` PR only) | `<domain>` | `deploy-aws.yml` |
-| `main` | `nelsontorresjr330.github.io` (until cutover) | `deploy.yml` |
+| `dev` | `dev.nelsontorres.dev` | `deploy-aws.yml` |
+| `main` (merged `dev` → `main` PR only) | `nelsontorres.dev` | `deploy-aws.yml` |
 
 CI (`ci.yml`) runs every test, both builds and a CDK synth on each PR and before each deploy.
 
@@ -41,10 +39,10 @@ CI (`ci.yml`) runs every test, both builds and a CDK synth on each PR and before
 
 | Path | Holds |
 |---|---|
-| `src/content/portfolio.js` | all site content: profile, experiences, projects, expertise |
+| `src/content/site.js` | all site content: stack map, roles, expertise, degrees, Olene apps |
+| `src/content/laplacian.js` | the Laplacian demo's saved run and K sweep |
 | `src/content/careerClock.js` | the live time-on-the-job clock (since Oct 2022) |
-| `src/concepts/` | the three redesign concepts and their stories |
-| `src/pages/` | the current pages, including the Laplacian demo |
+| `src/pages/` | Landing (stack map), Professional, Academic, Personal, Laplacian demo |
 | `infra/cdk/` | stacks, CloudFront functions, and their tests |
 | `research/` | the Laplacian GLM paper's code and demo backend |
 | `scripts/` | the GitHub Pages redirect generator (cutover) |

@@ -30,7 +30,11 @@ export interface PortfolioConfig {
 }
 
 // Pages that moved: old path -> new path. Keep entries forever; links to them are out there.
-const REDIRECTS: Record<string, string> = {};
+const REDIRECTS: Record<string, string> = {
+  '/work': '/professional',
+  '/projects': '/personal',
+  '/publications': '/academic',
+};
 
 export function loadConfig(app: App): PortfolioConfig {
   const domain = String(app.node.tryGetContext('domain') ?? '').trim();

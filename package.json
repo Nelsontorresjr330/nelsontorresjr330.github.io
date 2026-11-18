@@ -9,9 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build -o storybook-static"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -20,13 +18,11 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.6.7",
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.3",
     "@vitejs/plugin-react": "^6.3.0",
     "jsdom": "^29.1.1",
-    "storybook": "^10.6.7",
     "tailwindcss": "^4.3.5",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"

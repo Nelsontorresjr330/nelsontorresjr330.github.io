@@ -2,28 +2,51 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Newsreader", ui-serif, Georgia, serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Surfaces and text (dark site) */
+  --color-ground: #08080a;
+  --color-panel: #0e0e12;
+  --color-raised: #16161b;
+  --color-line: #1a1a1f;
+  --color-line-strong: #23232a;
+  --color-ink: #fafafa;
+  --color-body: #e4e4e7;
+  --color-soft: #d4d4d8;
+  --color-muted: #a1a1aa;
+  --color-faint: #52525b;
+
+  /* Area accents */
+  --color-pro: #a78bfa;
+  --color-pro-soft: #c4b5fd;
+  --color-aca: #38bdf8;
+  --color-aca-soft: #7dd3fc;
+  --color-per: #fb923c;
+  --color-per-soft: #fdba74;
 }
 
-/* Tailwind v4 made the default border color currentColor; keep v3's gray so the
-   existing pages look the same after the move off Create React App. */
 @layer base {
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+    border-color: var(--color-line, currentColor);
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
-}
-
-body,
-html {
-  margin: 0;
-  padding: 0;
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-ground);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  input[type="range"] {
+    accent-color: var(--color-aca);
+  }
 }

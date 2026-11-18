@@ -1,41 +1,44 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
 
-import Header from './components/Header';
-import Footer from './components/Footer';
-
-import HomePage from './pages/HomePage';
-import WorkExperiencePage from './pages/WorkExperiencePage';
-import PersonalProjectsPage from './pages/PersonalProjectsPage';
+import SiteHeader from './components/SiteHeader';
+import LandingPage from './pages/LandingPage';
+import ProfessionalPage from './pages/ProfessionalPage';
 import AcademicPage from './pages/AcademicPage';
 import PersonalPage from './pages/PersonalPage';
 import LaplacianGLMPage from './pages/LaplacianGLMPage';
-import PublicationsPage from './pages/PublicationsPage';
+import { REDIRECTS } from './content/site';
 
 // Every path here is public and may already be linked from elsewhere (the CSCI paper,
-// emails). Never remove one; point it at its new home instead.
+// emails, the old site). Never remove one; point it at its new home instead.
 export const ROUTES = [
-  { path: '/', element: <HomePage /> },
-  { path: '/work', element: <WorkExperiencePage /> },
-  { path: '/projects', element: <PersonalProjectsPage /> },
+  { path: '/', element: <LandingPage /> },
+  { path: '/professional', element: <ProfessionalPage /> },
   { path: '/academic', element: <AcademicPage /> },
-  { path: '/publications', element: <PublicationsPage /> },
   { path: '/personal', element: <PersonalPage /> },
   { path: '/research/laplacian-glm', element: <LaplacianGLMPage /> },
 ];
 
+function NotFound() {
+  return (
+    <section className="mx-auto max-w-[1200px] px-6 py-24">
+      <h1 className="m-0 text-3xl font-bold text-ink">Page not found</h1>
+      <p className="mt-3 text-muted">That page doesn’t exist. <Link to="/" className="text-aca-soft no-underline">Go to the home page</Link>.</p>
+    </section>
+  );
+}
+
 export function AppShell() {
   return (
-    <div className="flex flex-col min-h-screen bg-gray-900 text-gray-100">
-      <Header />
-      <main className="flex-grow">
+    <div className="min-h-screen bg-ground text-body">
+      <SiteHeader />
+      <main>
         <Routes>
-          {ROUTES.map((r) => (
-            <Route key={r.path} path={r.path} element={r.element} />
-          ))}
+          {ROUTES.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
+          {Object.entries(REDIRECTS).map(([from, to]) => <Route key={from} path={from} element={<Navigate to={to} replace />} />)}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <Footer />
     </div>
   );
 }
