@@ -50,7 +50,7 @@ export default function PersonalProjectsPage() {
         {/* Prev */}
         <button
           onClick={prev}
-          className="absolute top-1/2 left-4 transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition"
+          className="absolute top-1/2 left-4 transform -translate-y-1/2 bg-gray-800/50 text-white p-2 rounded-full hover:bg-gray-800/75 transition"
         >
           ‹
         </button>
@@ -58,7 +58,7 @@ export default function PersonalProjectsPage() {
         {/* Next */}
         <button
           onClick={next}
-          className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition"
+          className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-gray-800/50 text-white p-2 rounded-full hover:bg-gray-800/75 transition"
         >
           ›
         </button>
@@ -79,12 +79,12 @@ export default function PersonalProjectsPage() {
 
       {/* Lightbox Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/0 z-50 flex items-center justify-center">
           <div className="relative w-[90%] sm:w-[70%] max-h-[90vh]">
             {/* Close with centered circle */}
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 w-10 h-10 bg-black bg-opacity-75 flex items-center justify-center rounded-full hover:bg-opacity-50 transition"
+              className="absolute top-4 right-4 w-10 h-10 bg-black/75 flex items-center justify-center rounded-full hover:bg-black/50 transition"
             >
               <span className="text-white text-2xl leading-none">×</span>
             </button>

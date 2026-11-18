@@ -36,14 +36,14 @@ export default function PersonalPage() {
 
         <button
           onClick={prevPhoto}
-          className="absolute top-1/2 left-[15%] transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition"
+          className="absolute top-1/2 left-[15%] transform -translate-y-1/2 bg-gray-800/50 text-white p-2 rounded-full hover:bg-gray-800/75 transition"
         >
           ‹
         </button>
 
         <button
           onClick={nextPhoto}
-          className="absolute top-1/2 right-[15%] transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition"
+          className="absolute top-1/2 right-[15%] transform -translate-y-1/2 bg-gray-800/50 text-white p-2 rounded-full hover:bg-gray-800/75 transition"
         >
           ›
         </button>

@@ -3,6 +3,9 @@ permissions:
 
 name: Build & Publish to /docs
 
+# GitHub Pages (nelsontorresjr330.github.io). Retired at cutover: RUNBOOK-hosting.md, step 6
+# replaces docs/ with redirects to the new domain and deletes this workflow.
+
 on:
   push:
     branches:
@@ -13,17 +16,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

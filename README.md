@@ -1,70 +1,52 @@
-# Getting Started with Create React App
+# Nelson Torres: portfolio and research demos
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Personal site with academic, professional and personal work, plus live demos of my Ph.D.
+research (the Laplacian-regularized GLM simulation today; the contrastive-learning projects next).
 
-## Available Scripts
+React 19, Vite, Tailwind 4, Storybook. Hosted on S3 and CloudFront with CDK (`infra/cdk`), the
+same way as the Olene apps. Until cutover it is also published to GitHub Pages
+(`nelsontorresjr330.github.io`).
 
-In the project directory, you can run:
+## Run it
 
-### `npm start`
+```bash
+npm install
+npm run dev               # http://localhost:3000
+npm test                  # page, content and redirect tests (Vitest)
+npm run storybook         # design concepts, http://localhost:6006
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+The Laplacian demo calls the API in `REACT_APP_GLM_API_URL` (`.env`). On AWS the build sets it to
+`/api/laplacian-glm`, which CloudFront forwards to the demo's API.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Infra:
 
-### `npm test`
+```bash
+cd infra/cdk && npm install
+npm test                                  # CloudFront function and stack tests
+npx cdk synth -c synthOnly=true -q        # synth without a hosted zone
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## How it ships
 
-### `npm run build`
+| Branch | Deploys to | Workflow |
+|---|---|---|
+| `dev` | `dev.<domain>` (and `/storybook/`) | `deploy-aws.yml` |
+| `main` (merged `dev` → `main` PR only) | `<domain>` | `deploy-aws.yml` |
+| `main` | `nelsontorresjr330.github.io` (until cutover) | `deploy.yml` |
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+CI (`ci.yml`) runs every test, both builds and a CDK synth on each PR and before each deploy.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Layout
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+| Path | Holds |
+|---|---|
+| `src/content/portfolio.js` | all site content: profile, experiences, projects |
+| `src/concepts/` | the three redesign concepts and their stories |
+| `src/pages/` | the current pages, including the Laplacian demo |
+| `infra/cdk/` | stacks, CloudFront functions, and their tests |
+| `research/` | the Laplacian GLM paper's code and demo backend |
+| `scripts/` | the GitHub Pages redirect generator (cutover) |
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Docs: [RUNBOOK-hosting.md](RUNBOOK-hosting.md) (domain and AWS setup, exact commands) ·
+[futureContext.md](futureContext.md) (risks and future jobs).

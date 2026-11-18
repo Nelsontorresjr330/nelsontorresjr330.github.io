@@ -33,3 +33,10 @@ multi_results*.json
 multi_study*.db
 *_results.json
 *.db-journal
+
+# Storybook
+/storybook-static/
+
+# CDK
+infra/cdk/cdk.out/
+infra/cdk/node_modules/

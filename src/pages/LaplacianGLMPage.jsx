@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const API_BASE = (process.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
+const API_BASE = (import.meta.env.REACT_APP_GLM_API_URL || '').replace(/\/$/, '');
 
 // Defaults = the optimal multi-dataset configuration from the parameter search.
 const DEFAULT_PARAMS = {
