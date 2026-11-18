@@ -7,7 +7,7 @@ export default function AcademicPage() {
 
         <div className="bg-gray-800 rounded-lg p-6 shadow-md">
         <h3 className="text-xl font-semibold">PhD in Computational and Data Sciences</h3>
-        <p className="text-gray-400 mt-1">Middle Tennessee State University</p>
+        <p className="text-gray-400 mt-1">Middle Tennessee State University, 2025 – Present</p>
         <p className="mt-2">
           <strong>Research Advisor:</strong> Dr. Xin Yang
         </p>

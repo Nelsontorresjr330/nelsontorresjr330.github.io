@@ -25,3 +25,33 @@ describe('routes', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('current content', () => {
+  function renderAt(path) {
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <AppShell />
+      </MemoryRouter>,
+    );
+  }
+
+  it('says Archera on the home page, with a live career clock instead of a fixed year count', () => {
+    renderAt('/');
+    expect(screen.getByText(/Software Developer at Archera/)).toBeInTheDocument();
+    expect(screen.queryByText(/SDE3 with Amazon/)).toBeNull();
+    expect(screen.queryByText('3+')).toBeNull();
+    expect(screen.getByLabelText(/years, \d+ months and \d+ days of full-time engineering/)).toBeInTheDocument();
+  });
+
+  it('lists Archera first on the work page and ends the Amazon role', () => {
+    renderAt('/work');
+    const roles = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(roles[0]).toBe('Software Developer, Archera');
+    expect(screen.getByText(/Jun 2025 – Jan 2026/)).toBeInTheDocument();
+  });
+
+  it('puts PayClear under Olene Software on the personal projects page', () => {
+    renderAt('/projects');
+    expect(screen.getByText(/Olene Software LLC \(owner\): PayClear/)).toBeInTheDocument();
+  });
+});

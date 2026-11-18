@@ -1,3 +1,5 @@
+import { CAREER_START } from './careerClock';
+
 // Single source of truth for the portfolio's content. Every design concept in
 // Storybook (and the rebuilt site) renders from this file, so a fact is edited once.
 //
@@ -6,8 +8,8 @@
 
 export const AREAS = [
   { id: 'academic', label: 'Academic', blurb: 'Ph.D. research in computational neuroimaging and deep learning.', statement: 'learning how the brain is wired, from fMRI.' },
-  { id: 'professional', label: 'Professional', blurb: 'Software engineering at Amazon, and the apps I run at Olene Software.', statement: 'software people rely on every day.' },
-  { id: 'personal', label: 'Personal', blurb: 'What I build and do outside of work.', statement: 'what I make when nobody asked.' },
+  { id: 'professional', label: 'Professional', blurb: 'Full-time software engineering since October 2022, and what I know how to do.', statement: 'software people rely on every day.' },
+  { id: 'personal', label: 'Personal', blurb: 'Olene Software, the company I own, and what I make for fun.', statement: 'what I own, build and love.' },
 ];
 
 export const STATUS_LABELS = {
@@ -18,20 +20,23 @@ export const STATUS_LABELS = {
 
 export const profile = {
   name: 'Nelson Torres',
-  role: 'Software engineer and Ph.D. researcher',
-  headline: 'I build software at Amazon and study the brain with deep learning.',
+  role: 'Software developer and Ph.D. researcher',
+  headline: 'I write software at Archera and teach neural networks to read brain scans.',
   summary:
-    'Senior Software Engineer (SDE3) at Amazon and Ph.D. student in Computational and Data Sciences at ' +
-    'Middle Tennessee State University, advised by Dr. Xin Yang. My research applies graph signal processing ' +
-    'and contrastive deep learning to fMRI, starting with autism classification on ABIDE.',
+    'Software developer at Archera, Ph.D. student in Computational and Data Sciences at Middle Tennessee ' +
+    'State University (advised by Dr. Xin Yang), and owner of Olene Software. My research applies graph ' +
+    'signal processing and contrastive deep learning to fMRI, starting with autism classification on ABIDE.',
+  // Full-time engineering began in October 2022; the site shows a live clock from here.
+  careerStart: CAREER_START,
   location: 'Nashville, TN',
   links: [
     { label: 'GitHub', href: 'https://github.com/Nelsontorresjr330' },
     { label: 'Résumé', href: '/Resume.pdf' },
     { label: 'Academic portfolio', href: '/AcademicPortfolio.pdf' },
+    { label: 'LinkedIn', href: 'https://www.linkedin.com/in/nelsontorresjr330/' },
   ],
   stats: [
-    { value: '3+', label: 'years in industry' },
+    { value: 'Oct 2022', label: 'full-time engineering since' },
     { value: 'M.S.', label: 'Computer Science, Vanderbilt' },
     { value: '1', label: 'live research demo' },
   ],
@@ -44,7 +49,7 @@ export const experiences = [
     area: 'academic',
     title: 'Ph.D., Computational and Data Sciences',
     org: 'Middle Tennessee State University',
-    start: null,
+    start: '2025',
     end: 'Present',
     summary:
       'Advisor: Dr. Xin Yang. fMRI analysis: surface-informed regularization of the GLM, and contrastive ' +
@@ -56,7 +61,7 @@ export const experiences = [
     area: 'academic',
     title: 'M.S., Computer Science',
     org: 'Vanderbilt University',
-    start: null,
+    start: '2023',
     end: 'May 2024',
     summary:
       'GPA 3.74. Artificial intelligence, machine learning, model-based development, computer networks, ' +
@@ -68,34 +73,33 @@ export const experiences = [
     area: 'academic',
     title: 'B.S., Computer Engineering and Applied Physics',
     org: 'Middle Tennessee State University',
-    start: null,
+    start: '2019',
     end: 'Dec 2022',
     summary: 'Double major with a minor in French. Built an 8-bit computer from logic gates in Logisim.',
     tags: ['Physics', 'Computer architecture'],
   },
-  // Professional
+  // Professional (full-time engineering since Oct 2022; Olene Software is personal: I own it)
+  {
+    id: 'archera',
+    area: 'professional',
+    title: 'Software Developer',
+    org: 'Archera',
+    start: 'Jan 2026',
+    end: 'Present',
+    current: true,
+    summary: 'Cloud commitment and cost-management platform.',
+    tags: [],
+  },
   {
     id: 'amazon-sde3',
     area: 'professional',
     title: 'Senior Software Engineer (SDE3)',
     org: 'Amazon',
     start: 'Jun 2025',
-    end: 'Present',
+    end: 'Jan 2026',
     summary:
-      'Building a computer-vision ergonomics evaluator for Amazon associates. Java, Python ML frameworks, AWS.',
-    tags: ['Computer vision', 'Java', 'AWS'],
-  },
-  {
-    id: 'olene',
-    area: 'professional',
-    title: 'Founder',
-    org: 'Olene Software LLC',
-    start: null,
-    end: 'Present',
-    summary:
-      'I design, build and run a family of business apps on AWS: PayClear (payroll and business finance, live), ' +
-      'with LibroCost, LawnMole, ProsCircle and PlanoCost in development. One shared sign-in across all of them.',
-    tags: ['React', 'AWS CDK', 'Stripe'],
+      'Built a computer-vision ergonomics evaluator for Amazon associates. Java, Python ML frameworks, AWS.',
+    tags: ['Computer vision', 'Java', 'Python', 'AWS', 'ML'],
   },
   {
     id: 'amazon-robotics',
@@ -106,7 +110,7 @@ export const experiences = [
     end: 'Jun 2025',
     summary:
       'Proprietary SCADA system for Amazon warehouses: data ETLs, PLC programming, Python, AWS, SQL. Team Scrum master.',
-    tags: ['SCADA', 'Python', 'SQL'],
+    tags: ['SCADA', 'PLC', 'Python', 'AWS', 'SQL', 'ETL', 'Scrum'],
   },
   {
     id: 'ipro',
@@ -118,7 +122,7 @@ export const experiences = [
     summary:
       'Backend APIs and frontend changes. Spark, Python, Docker, Java, FastAPI, Node.js, AWS. Redshift DDL, large ' +
       'ETL migrations from legacy systems, and billing processes.',
-    tags: ['Spark', 'FastAPI', 'Redshift'],
+    tags: ['Spark', 'Python', 'Docker', 'Java', 'SQL', 'FastAPI', 'Node.js', 'AWS', 'Redshift', 'ETL'],
   },
   {
     id: 'automation-nth',
@@ -129,8 +133,21 @@ export const experiences = [
     end: 'Oct 2022',
     summary: 'PLC programming, AutoCAD schematics, and building and wiring control panels.',
     tags: ['PLC', 'AutoCAD'],
+    internship: true,
   },
   // Personal
+  {
+    id: 'olene',
+    area: 'personal',
+    title: 'Owner',
+    org: 'Olene Software LLC',
+    start: null,
+    end: 'Present',
+    summary:
+      'My company. I design, build and run its apps: PayClear (live), LibroCost, LawnMole, ProsCircle and ' +
+      'PlanoCost, all on one shared sign-in.',
+    tags: ['React', 'AWS CDK', 'Stripe'],
+  },
   {
     id: 'making',
     area: 'personal',
@@ -237,10 +254,10 @@ export const projects = [
     href: 'https://pubmed.ncbi.nlm.nih.gov/38451329/',
     cta: 'Read on PubMed',
   },
-  // Professional
+  // Personal (Olene Software is mine, so it lives here)
   {
     id: 'payclear',
-    area: 'professional',
+    area: 'personal',
     title: 'PayClear',
     summary: 'Payroll and business finance for small businesses, with Stripe and Plaid. Live with paying customers.',
     status: 'live',
@@ -253,8 +270,48 @@ export const projects = [
     featured: true,
   },
   {
+    id: 'librocost',
+    area: 'personal',
+    title: 'LibroCost',
+    summary: 'Turns scanned paper invoices into categorized, queryable cost data.',
+    status: 'in-progress',
+    year: '2026',
+    art: 'app',
+    tags: ['OCR', 'Python', 'AWS'],
+  },
+  {
+    id: 'lawnmole',
+    area: 'personal',
+    title: 'LawnMole',
+    summary: 'Client management and auto-pay billing for lawn-care companies, with a portal for homeowners.',
+    status: 'in-progress',
+    year: '2026',
+    art: 'app',
+    tags: ['SaaS', 'Stripe'],
+  },
+  {
+    id: 'proscircle',
+    area: 'personal',
+    title: 'ProsCircle',
+    summary: 'Field service management for HVAC and the trades: dispatch, invoicing and payments.',
+    status: 'in-progress',
+    year: '2026',
+    art: 'app',
+    tags: ['Field service'],
+  },
+  {
+    id: 'planocost',
+    area: 'personal',
+    title: 'PlanoCost',
+    summary: 'Masonry takeoff and estimating that replaces a mason’s estimating workbook.',
+    status: 'in-progress',
+    year: '2026',
+    art: 'app',
+    tags: ['Estimating'],
+  },
+  {
     id: 'olene-platform',
-    area: 'professional',
+    area: 'personal',
     title: 'Olene platform and shared sign-in',
     summary:
       'One account across five apps: a shared Cognito pool, SRP sign-in in each app, and hand-off between apps.',
@@ -263,17 +320,6 @@ export const projects = [
     art: 'app',
     tags: ['Cognito', 'AWS CDK', 'Playwright'],
   },
-  {
-    id: 'ergonomics-cv',
-    area: 'professional',
-    title: 'Computer-vision ergonomics evaluator',
-    summary: 'At Amazon: scoring workstation ergonomics from video so associates work more safely.',
-    status: 'in-progress',
-    year: '2025',
-    art: 'timeseries',
-    tags: ['Computer vision', 'Amazon'],
-  },
-  // Personal
   {
     id: 'this-site',
     area: 'personal',
@@ -295,6 +341,20 @@ export const projects = [
     tags: ['3D printing'],
   },
 ];
+
+// Professional page: skills grouped, each linked to the roles (experience ids) that used it.
+export const expertise = [
+  { label: 'Languages', skills: ['Python', 'Java', 'SQL', 'Node.js'] },
+  { label: 'Cloud and infrastructure', skills: ['AWS', 'Docker', 'Redshift'] },
+  { label: 'Data engineering', skills: ['Spark', 'ETL', 'FastAPI'] },
+  { label: 'ML and vision', skills: ['Computer vision', 'ML'] },
+  { label: 'Industrial systems', skills: ['SCADA', 'PLC'] },
+  { label: 'Ways of working', skills: ['Scrum'] },
+];
+
+export function rolesUsing(skill) {
+  return experiences.filter((e) => e.area === 'professional' && e.tags.includes(skill));
+}
 
 export const photos = ['/PersonalImages/InTree.JPG', '/PersonalImages/OnBeach.JPG', '/PersonalImages/InJungle.JPG'];
 

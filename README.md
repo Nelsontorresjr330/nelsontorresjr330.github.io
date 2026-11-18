@@ -41,12 +41,13 @@ CI (`ci.yml`) runs every test, both builds and a CDK synth on each PR and before
 
 | Path | Holds |
 |---|---|
-| `src/content/portfolio.js` | all site content: profile, experiences, projects |
+| `src/content/portfolio.js` | all site content: profile, experiences, projects, expertise |
+| `src/content/careerClock.js` | the live time-on-the-job clock (since Oct 2022) |
 | `src/concepts/` | the three redesign concepts and their stories |
 | `src/pages/` | the current pages, including the Laplacian demo |
 | `infra/cdk/` | stacks, CloudFront functions, and their tests |
 | `research/` | the Laplacian GLM paper's code and demo backend |
 | `scripts/` | the GitHub Pages redirect generator (cutover) |
 
-Docs: [RUNBOOK-hosting.md](RUNBOOK-hosting.md) (domain and AWS setup, exact commands) ·
+Docs: [RUNBOOK.md](RUNBOOK.md) (everything a person runs, in order: domain, AWS, cutover, demo API, Project 1 setup) ·
 [futureContext.md](futureContext.md) (risks and future jobs).

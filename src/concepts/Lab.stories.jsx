@@ -7,5 +7,5 @@ export default { title: 'Concepts/B Lab', component: LabConcept, args: { content
 
 export const AllWork = { args: { initialFilter: 'all' } };
 export const AcademicOnly = { args: { initialFilter: 'academic' } };
-export const ProfessionalOnly = { args: { initialFilter: 'professional' } };
+export const PersonalOnly = { args: { initialFilter: 'personal' } };
 export const Phone = { parameters: phone, globals: { viewport: { value: 'phone', isRotated: false } } };

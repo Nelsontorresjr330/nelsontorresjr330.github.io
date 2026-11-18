@@ -3,7 +3,7 @@ permissions:
 
 name: Build & Publish to /docs
 
-# GitHub Pages (nelsontorresjr330.github.io). Retired at cutover: RUNBOOK-hosting.md, step 6
+# GitHub Pages (nelsontorresjr330.github.io). Retired at cutover: RUNBOOK.md, part 8
 # replaces docs/ with redirects to the new domain and deletes this workflow.
 
 on:

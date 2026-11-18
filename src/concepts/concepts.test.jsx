@@ -34,10 +34,10 @@ describe.each([
 });
 
 describe('Notebook tabs', () => {
-  it('switches to the Professional projects and timeline', () => {
+  it('switches to the Personal projects and timeline', () => {
     render(<NotebookConcept content={content} />);
     expect(screen.queryByText('PayClear')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Professional' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Personal' }));
     expect(screen.getByText('PayClear')).toBeInTheDocument();
     expect(screen.queryByText(LAPLACIAN)).toBeNull();
   });
@@ -47,14 +47,14 @@ describe('Lab filter', () => {
   it('narrows the grid to one area and shows counts', () => {
     render(<LabConcept content={content} />);
     const tabs = screen.getByRole('tablist');
-    fireEvent.click(within(tabs).getByRole('tab', { name: /Professional/ }));
-    expect(within(tabs).getByRole('tab', { name: /Professional/ })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(within(tabs).getByRole('tab', { name: /Personal/ }));
+    expect(within(tabs).getByRole('tab', { name: /Personal/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('PayClear')).toBeInTheDocument();
     expect(screen.queryByText(LAPLACIAN)).toBeNull();
   });
 
   it('opens external links in a new tab', () => {
-    render(<LabConcept content={content} initialFilter="professional" />);
+    render(<LabConcept content={content} initialFilter="personal" />);
     const link = screen.getByText('PayClear').closest('a');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');

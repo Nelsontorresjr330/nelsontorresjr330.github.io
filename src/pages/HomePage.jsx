@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import CareerClock from '../components/CareerClock';
 
 export default function HomePage() {
   return (
     <div className="p-8 text-center">
       <h2 className="text-4xl font-bold mb-4">
-        Motivated Software Developer currently working as an SDE3 with Amazon <br /> 
-        & Pursueing my PhD in Computational Science at MTSU.
+        Software Developer at Archera <br />
+        &amp; Ph.D. researcher in Computational Science at MTSU.
       </h2>
 
       <Link to="/projects">
@@ -22,8 +23,8 @@ export default function HomePage() {
           to="/work"
           className="bg-gray-800 rounded-lg p-6 text-center shadow-md hover:bg-gray-700 transition"
         >
-          <p className="text-4xl font-bold">3+</p>
-          <p className="text-xl text-gray-400 mt-2">Years Work Experience</p>
+          <CareerClock className="block text-2xl font-bold" />
+          <p className="text-xl text-gray-400 mt-2">Full-time engineering since Oct 2022</p>
         </Link>
 
         <Link

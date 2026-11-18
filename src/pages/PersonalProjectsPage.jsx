@@ -22,9 +22,10 @@ export default function PersonalProjectsPage() {
 
       {/* Project Card */}
       <div className="bg-gray-800 rounded-lg p-6 shadow-md">
-        <h3 className="text-xl font-semibold">PayClear Payroll &amp; Business Finance App</h3>
+        <h3 className="text-xl font-semibold">Olene Software LLC (owner): PayClear</h3>
         <p className="mt-2">
-          An AWS-powered all-in-one payroll and business finance web application integrating Stripe &amp; Plaid APIs built in React.
+          PayClear is live: an AWS-powered payroll and business finance app built in React, integrating Stripe &amp; Plaid.
+          Also in development at Olene Software: LibroCost, LawnMole, ProsCircle and PlanoCost.
         </p>
         <a
           href="https://tspayclear.com/"

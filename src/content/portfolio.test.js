@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AREAS, STATUS_LABELS, byArea, dateRange, experiences, projects } from './portfolio';
+import { AREAS, STATUS_LABELS, byArea, dateRange, experiences, expertise, profile, projects, rolesUsing } from './portfolio';
 
 const areaIds = AREAS.map((a) => a.id);
 
@@ -11,10 +11,34 @@ describe('portfolio content', () => {
     expect(new Set(experiences.map((e) => e.id)).size).toBe(experiences.length);
   });
 
-  it('has at least one project and one experience in each area', () => {
-    for (const id of areaIds) {
-      expect(byArea(projects, id).length).toBeGreaterThan(0);
-      expect(byArea(experiences, id).length).toBeGreaterThan(0);
+  it('has experience in every area, and projects in Academic and Personal', () => {
+    for (const id of areaIds) expect(byArea(experiences, id).length).toBeGreaterThan(0);
+    for (const id of ['academic', 'personal']) expect(byArea(projects, id).length).toBeGreaterThan(0);
+  });
+
+  it('keeps Olene Software and its apps under Personal, not Professional (I own the company)', () => {
+    expect(experiences.find((e) => e.id === 'olene').area).toBe('personal');
+    for (const id of ['payclear', 'librocost', 'lawnmole', 'proscircle', 'planocost', 'olene-platform']) {
+      expect(projects.find((p) => p.id === id)?.area).toBe('personal');
+    }
+    expect(byArea(experiences, 'professional').map((e) => e.org)).not.toContain('Olene Software LLC');
+  });
+
+  it('shows Archera as the one current role, and Amazon as ended', () => {
+    const current = byArea(experiences, 'professional').filter((e) => e.end === 'Present');
+    expect(current.map((e) => e.org)).toEqual(['Archera']);
+    expect(experiences.find((e) => e.id === 'amazon-sde3').end).not.toBe('Present');
+    expect(profile.headline).toMatch(/Archera/);
+    expect(profile.summary).not.toMatch(/at Amazon/);
+  });
+
+  it('starts the career clock in October 2022', () => {
+    expect(profile.careerStart).toBe('2022-10-01');
+  });
+
+  it('links every listed skill to at least one role', () => {
+    for (const group of expertise) {
+      for (const skill of group.skills) expect(rolesUsing(skill).length, skill).toBeGreaterThan(0);
     }
   });
 

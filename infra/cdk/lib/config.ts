@@ -43,7 +43,7 @@ export function loadConfig(app: App): PortfolioConfig {
     // CI synthesizes on every PR, before the domain may be registered. Real deploys never
     // pass synthOnly, so a missing zone can't slip into a deploy.
     if (app.node.tryGetContext('synthOnly') !== 'true') {
-      throw new Error('Set "hostedZoneId" in cdk.json (RUNBOOK-hosting.md, step 2).');
+      throw new Error('Set "hostedZoneId" in cdk.json (RUNBOOK.md, part 3).');
     }
     hostedZoneId = 'Z00000000PLACEHOLDER';
   }
