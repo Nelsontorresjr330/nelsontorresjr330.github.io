@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AREAS, AREA_ORDER, PROFILE, TECH_GROUPS, USES, WORK } from '../content/site';
 
@@ -29,6 +29,13 @@ export function buildStackMap() {
 /** "Archera · Software Developer" -> "Archera" (phones, and lists of names). */
 export const shortLabel = (label) => label.split(' · ')[0];
 
+// Hover intent. Moving from one item to another waits briefly, and the outer few pixels of a row
+// don't count as entering it, so a hand resting on the border between two rows doesn't flip the
+// whole panel back and forth (measured 2026-11-18: 39 flips in 40 one-pixel jitters before this).
+export const HOVER_SWITCH_MS = 90;
+export const HOVER_LEAVE_MS = 150;
+export const HOVER_EDGE_PX = 3;
+
 const link = (y1, y2) => `M0 ${y1}C100 ${y1} 100 ${y2} 200 ${y2}`;
 
 function isExternal(href) {
@@ -39,6 +46,39 @@ export default function LandingPage() {
   const map = useMemo(buildStackMap, []);
   const [sel, setSel] = useState(null);
   const [hover, setHover] = useState(null);
+  const hoverRef = useRef(null);
+  const pendingRef = useRef(null);
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const commitHover = (id) => {
+    clearTimeout(timerRef.current);
+    pendingRef.current = null;
+    hoverRef.current = id;
+    setHover(id);
+  };
+  // Pointer moved over a row: ignore its edges, switch at once if nothing is shown yet,
+  // otherwise only after the pointer has rested on the new row.
+  const pointerOver = (id) => (e) => {
+    if (id === hoverRef.current) { clearTimeout(timerRef.current); pendingRef.current = null; return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    if (r.height > HOVER_EDGE_PX * 4 && (e.clientY - r.top < HOVER_EDGE_PX || r.bottom - e.clientY < HOVER_EDGE_PX)) return;
+    if (hoverRef.current === null) { commitHover(id); return; }
+    if (pendingRef.current === id) return;
+    clearTimeout(timerRef.current);
+    pendingRef.current = id;
+    timerRef.current = setTimeout(() => commitHover(id), HOVER_SWITCH_MS);
+  };
+  // Focus moving to another row in the map is a switch, not a clear (avoids a flash on click).
+  const blurMap = (e) => {
+    if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('[data-testid="stack-map"]')) return;
+    commitHover(null);
+  };
+  const pointerLeaveMap = () => {
+    clearTimeout(timerRef.current);
+    pendingRef.current = null;
+    timerRef.current = setTimeout(() => commitHover(null), HOVER_LEAVE_MS);
+  };
   const act = hover || sel;
   const actWork = act && map.work[act];
   const actTech = act && map.tech[act];
@@ -114,7 +154,7 @@ export default function LandingPage() {
             heading: clearing per row made the panel and the dimming flash on every row change. */}
         <div
           data-testid="stack-map"
-          onMouseLeave={() => setHover(null)}
+          onMouseLeave={pointerLeaveMap}
           className="grid grid-cols-[minmax(0,1.25fr)_24px_minmax(0,1fr)] items-start sm:grid-cols-[minmax(0,1.15fr)_minmax(48px,1fr)_minmax(0,0.95fr)]"
         >
           <div>
@@ -131,10 +171,10 @@ export default function LandingPage() {
                       key={w.id}
                       type="button"
                       aria-pressed={sel === w.id}
-                      onClick={() => toggle(w.id)}
-                      onMouseEnter={() => setHover(w.id)}
-                      onFocus={() => setHover(w.id)}
-                      onBlur={() => setHover(null)}
+                      onClick={() => { toggle(w.id); commitHover(w.id); }}
+                      onMouseMove={pointerOver(w.id)}
+                      onFocus={() => commitHover(w.id)}
+                      onBlur={blurMap}
                       className="flex h-9 w-full items-center justify-end gap-2.5 rounded-l-lg border-0 pl-2.5 text-right text-sm transition-opacity"
                       style={{ background: isAct ? '#16161c' : 'transparent', opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
                     >
@@ -164,10 +204,10 @@ export default function LandingPage() {
                       key={t.id}
                       type="button"
                       aria-pressed={sel === t.id}
-                      onClick={() => toggle(t.id)}
-                      onMouseEnter={() => setHover(t.id)}
-                      onFocus={() => setHover(t.id)}
-                      onBlur={() => setHover(null)}
+                      onClick={() => { toggle(t.id); commitHover(t.id); }}
+                      onMouseMove={pointerOver(t.id)}
+                      onFocus={() => commitHover(t.id)}
+                      onBlur={blurMap}
                       className="flex h-9 w-full items-center gap-2.5 rounded-r-lg border-0 pr-2.5 text-left font-mono text-[13px] transition-opacity"
                       style={{ background: isAct ? '#0c1a24' : 'transparent', opacity: on ? 1 : 0.28, color: 'var(--color-body)', fontWeight: isAct ? 600 : 500 }}
                     >
