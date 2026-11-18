@@ -16,6 +16,7 @@ export const AREAS = [
 export const STATUS_LABELS = {
   live: 'Live',
   'in-progress': 'In Progress',
+  'coming-soon': 'Coming Soon',
   planned: 'Planned',
 };
 
@@ -65,9 +66,9 @@ export const experiences = [
     start: '2023',
     end: 'May 2024',
     summary:
-      'GPA 3.74. Artificial intelligence, machine learning, model-based development, computer networks, ' +
-      'parallel programming, web system architecture.',
-    tags: ['AI', 'Machine learning'],
+      'Artificial Intelligence (CS 5260), Foundations of Machine Learning (CS 5262), parallel programming, ' +
+      'model-based development, computer networks, web-based system architecture.',
+    tags: ['Python', 'Java', 'PyTorch', 'nilearn', 'NumPy', 'SQL', 'AWS', 'AWS CDK', 'Docker'],
   },
   {
     id: 'bs-mtsu',
@@ -79,7 +80,7 @@ export const experiences = [
     summary:
       'Double major with a Computer Science concentration and a minor in French: C++ (CSCI 1170, 2170), ' +
       'assembly, digital logic and microprocessors. Built an 8-bit computer from logic gates in Logisim.',
-    tags: ['Physics', 'Computer architecture'],
+    tags: ['Python', 'Java', 'SQL', 'C++', 'Assembly', 'PLC', 'AWS', 'AWS CDK', 'Docker', 'Digital Logic', 'MATLAB'],
   },
   // Professional (full-time engineering since Oct 2022; Olene Software is personal: I own it)
   {
@@ -90,8 +91,8 @@ export const experiences = [
     start: 'Jan 2026',
     end: 'Present',
     current: true,
-    summary: 'Cloud commitment and cost-management platform.',
-    tags: [],
+    summary: 'Cloud commitment and cost-management platform across AWS, Azure and GCP.',
+    tags: ['Python', 'TypeScript', 'SQL', 'AWS', 'AWS CDK', 'Docker', 'Cognito', 'Azure', 'GCP', 'Stripe', 'SQLAlchemy', 'Alembic'],
   },
   {
     id: 'amazon-sde3',
@@ -147,8 +148,7 @@ export const experiences = [
     start: null,
     end: 'Present',
     summary:
-      'My company. I design, build and run its apps: PayClear (live), LibroCost, LawnMole, ProsCircle and ' +
-      'PlanoCost, all on one shared sign-in.',
+      'My company: PayClear, LibroCost and PlanoCost (available), and ProsCircle and LawnMole (coming soon).',
     tags: ['React', 'AWS CDK', 'Stripe'],
   },
   {
@@ -158,7 +158,7 @@ export const experiences = [
     org: 'At home',
     start: null,
     end: null,
-    summary: 'Designing and printing parts, and tinkering with microcontrollers.',
+    summary: 'Designing and printing parts and enclosures, and microcontroller projects.',
     tags: ['Making'],
   },
   {
@@ -277,7 +277,9 @@ export const projects = [
     area: 'personal',
     title: 'LibroCost',
     summary: 'Turns supplier invoices into verified cost data.',
-    status: 'in-progress',
+    status: 'live',
+    href: 'https://olenesoft.com/librocost/',
+    cta: 'Product page',
     year: '2026',
     art: 'app',
     tags: ['OCR', 'Python', 'AWS'],
@@ -287,7 +289,9 @@ export const projects = [
     area: 'personal',
     title: 'LawnMole',
     summary: 'Clients, service plans and billing for lawn care companies.',
-    status: 'in-progress',
+    status: 'coming-soon',
+    href: 'https://olenesoft.com/lawnmole/',
+    cta: 'Product page',
     year: '2026',
     art: 'app',
     tags: ['SaaS', 'Stripe'],
@@ -297,7 +301,9 @@ export const projects = [
     area: 'personal',
     title: 'ProsCircle',
     summary: 'Jobs, scheduling and invoices for home service businesses.',
-    status: 'in-progress',
+    status: 'coming-soon',
+    href: 'https://olenesoft.com/proscircle/',
+    cta: 'Product page',
     year: '2026',
     art: 'app',
     tags: ['Field service'],
@@ -307,7 +313,9 @@ export const projects = [
     area: 'personal',
     title: 'PlanoCost',
     summary: 'Masonry estimates measured on the plans.',
-    status: 'in-progress',
+    status: 'live',
+    href: 'https://olenesoft.com/planocost/',
+    cta: 'Product page',
     year: '2026',
     art: 'app',
     tags: ['Estimating'],
@@ -323,36 +331,17 @@ export const projects = [
     art: 'app',
     tags: ['Cognito', 'AWS CDK', 'Playwright'],
   },
-  {
-    id: 'this-site',
-    area: 'personal',
-    title: 'This site',
-    summary: 'React and Vite on S3 and CloudFront, built with CDK, with each research demo hosted alongside.',
-    status: 'live',
-    year: '2026',
-    art: 'app',
-    tags: ['Vite', 'CloudFront', 'Storybook'],
-  },
-  {
-    id: 'prints',
-    area: 'personal',
-    title: '3D-printed builds',
-    summary: 'Printed parts, enclosures and small electronics projects.',
-    status: 'in-progress',
-    year: 'Ongoing',
-    art: 'radiation',
-    tags: ['3D printing'],
-  },
 ];
 
 // Professional page: skills grouped, each linked to the roles (experience ids) that used it.
 export const expertise = [
-  { label: 'Languages', skills: ['Python', 'Java', 'SQL', 'Node.js'] },
-  { label: 'Cloud and infrastructure', skills: ['AWS', 'Docker', 'Redshift'] },
-  { label: 'Data engineering', skills: ['Spark', 'ETL', 'FastAPI'] },
-  { label: 'ML and vision', skills: ['Computer vision', 'ML'] },
-  { label: 'Industrial systems', skills: ['SCADA', 'PLC'] },
-  { label: 'Ways of working', skills: ['Scrum'] },
+  { label: 'Languages', skills: ['Python', 'TypeScript', 'Java', 'SQL', 'Node.js'] },
+  { label: 'Cloud and Infrastructure', skills: ['AWS', 'AWS CDK', 'Azure', 'GCP', 'Docker', 'Cognito', 'Redshift'] },
+  { label: 'Data and Backend', skills: ['SQLAlchemy', 'Alembic', 'Spark', 'ETL', 'FastAPI'] },
+  { label: 'Payments', skills: ['Stripe'] },
+  { label: 'ML and Vision', skills: ['Computer vision', 'ML'] },
+  { label: 'Industrial Systems', skills: ['SCADA', 'PLC'] },
+  { label: 'Ways of Working', skills: ['Scrum'] },
 ];
 
 export function rolesUsing(skill) {

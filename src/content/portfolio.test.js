@@ -32,6 +32,15 @@ describe('portfolio content', () => {
     expect(profile.summary).not.toMatch(/at Amazon/);
   });
 
+  it('lists the Archera stack and marks LibroCost and PlanoCost as available', () => {
+    expect(experiences.find((e) => e.id === 'archera').tags).toEqual(
+      expect.arrayContaining(['Python', 'TypeScript', 'AWS CDK', 'Azure', 'GCP', 'SQLAlchemy', 'Alembic']),
+    );
+    for (const id of ['librocost', 'planocost', 'payclear']) expect(projects.find((p) => p.id === id).status).toBe('live');
+    for (const id of ['lawnmole', 'proscircle']) expect(projects.find((p) => p.id === id).status).toBe('coming-soon');
+    expect(STATUS_LABELS['coming-soon']).toBe('Coming Soon');
+  });
+
   it('starts the career clock in October 2022', () => {
     expect(profile.careerStart).toBe('2022-10-01');
   });

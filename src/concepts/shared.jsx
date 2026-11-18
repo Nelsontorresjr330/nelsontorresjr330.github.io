@@ -104,6 +104,7 @@ export function ProjectArt({ kind, seed = kind, className = '' }) {
 const STATUS_TONE = {
   live: 'live',
   'in-progress': 'progress',
+  'coming-soon': 'progress',
   planned: 'planned',
 };
 
