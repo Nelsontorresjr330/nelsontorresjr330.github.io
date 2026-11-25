@@ -7,15 +7,17 @@ Steps Claude already ran are listed under **Done** with what was checked, so not
 
 | # | Area | What | When | Time |
 |---|---|---|---|---|
-| 8 | Research | Weeks 1–2 lesson: PyTorch tutorial and the week 1 script | Now (In Progress) | 4–6 hours over the two weeks |
+| 8 | Research | Lessons: weeks 1–2 (PyTorch), then weeks 3–4 (SimCLR on HAR) | Now (In Progress) | 4–6 hours each |
 | 3 | Research | MTSU HPC (Babbage) access: requested, waiting on MTSU | Requested | Follow-up only |
 | 7 | Research | Download ABIDE II raw scans and preprocess with DPARSF | Weeks 13–16 | 1–2 days on the laptop (runs unattended) |
 
 Steps 1, 2, 4, 5 and 6 are done (see **Done**); the numbers are kept so references to them stay valid.
 
 **Where Project 1 stands (2026-11-25).** Decisions are made, the code repo and environment are set
-up, and ABIDE I (871 subjects, both pipelines) is downloaded. You are in weeks 1–2, learning
-PyTorch. Claude builds the first ABIDE baseline next. Babbage isn't needed before about week 9.
+up, and ABIDE I (871 subjects, both pipelines) is downloaded. The first baseline is done: 0.673
+balanced accuracy on unseen sites, matching the literature, which is the number to beat. The weeks
+3–4 SimCLR lesson is built and waiting. You are in weeks 1–2, learning PyTorch. Babbage isn't
+needed before about week 9.
 The status table at the top of `PROJECT1_PLAN.md` is the one place this is kept current.
 
 The research plan these steps support is `/Users/nelsontorres/Desktop/research/contrastive-fmri/PROJECT1_PLAN.md`.
@@ -28,7 +30,9 @@ in `.nosync` (which iCloud skips), reached through the links `.venv` and `data`.
 ABIDE data must not be uploaded, and iCloud also breaks the environment (it hides files Python
 needs).
 
-### 8. Weeks 1–2: PyTorch foundations (In Progress)
+### 8. Lessons (In Progress)
+
+**Weeks 1–2: PyTorch foundations.**
 
 The full guide is `lessons/README.md` in the research repo: read PyTorch's "Learn the Basics"
 tutorial (about 3 hours), run the week 1 script, read the three short files it uses, and try the
@@ -44,6 +48,18 @@ Expected: five short parts, then eight epochs whose validation balanced accuracy
 0.33 to above 0.9, in a few seconds. Stop and send me the output if it errors, especially
 `No module named 'cfmri'` (the iCloud problem below). Done when you can explain each line of
 `train_one_epoch` in `src/cfmri/train.py`.
+
+**Weeks 3–4: SimCLR on UCI HAR**, after weeks 1–2. The guide is in the same `lessons/README.md`.
+
+```bash
+cd /Users/nelsontorres/Desktop/research/contrastive-fmri
+source .venv/bin/activate
+python lessons/week03_simclr_har.py
+```
+
+Expected, in about 30 seconds: a final table with an untrained encoder at about 0.91, SimCLR at
+about 0.93–0.94 and fully supervised at about 0.95. Stop and send me the output if SimCLR is not
+above the untrained encoder.
 
 ### 3. MTSU HPC (Babbage) access (Requested)
 
@@ -63,7 +79,7 @@ batch scripts when we get there; the step for you will be starting the MATLAB ba
 run. About 1,100 scans at roughly 10–20 minutes each: 1–2 days with parallel jobs on the laptop,
 or hours on MTSU's cluster if it has MATLAB.
 
-## Done (2026-11-18; nothing new through 2026-11-25)
+## Done
 
 | Step | What was done | How it was checked |
 |---|---|---|
@@ -71,6 +87,7 @@ or hours on MTSU's cluster if it has MATLAB.
 | Runbook 2 | Dr. Yang's five questions answered and recorded in section 9 of `PROJECT1_PLAN.md`: C-PAC main, DPARSF check and ABIDE II external test; LOSO primary; UCI HAR benchmark; no deadline; MTSU HPC | Nelson; plan updated |
 | Runbook 4 | Python 3.12 venv in `contrastive-fmri/.venv`: torch 2.15, nilearn 0.14.1, scikit-learn 1.9.1 | `mps: True` (M4 Max GPU) |
 | Runbook 5 | NITRC account (Nelson; ABIDE's only requirement). ABIDE I CC200 downloaded by Claude for C-PAC and DPARSF into `data.nosync` (950 MB, not synced or committed). The NITRC zip in `~/Downloads/scripts` is the unrelated 2010 1000 Functional Connectomes preprocessing scripts and can be deleted | Both pipelines: 871 subjects (403 ASD, 468 TD), 20 site IDs (17 institutions), 77–316 time points × 200 ROIs |
+| Research 2026-11-25 | First ABIDE I baseline (FC + logistic regression / SVM / random forest) and the weeks 3–4 SimCLR lesson, built by Claude | 41 tests in CI; 0.673 balanced accuracy under LOSO; HAR SimCLR 0.936 vs 0.915 untrained. Plan section 10 |
 | Runbook 6 | Private repo `Nelsontorresjr330/contrastive-fmri` (`main` and `dev`), CI on every push and PR | CI green, 11 tests; week 1 lesson trains to 0.98 balanced accuracy |
 | Domain | `nelsontorres.dev` registered in Route 53 until 2027-11-18, auto-renew and privacy protection on, same personal contact as nelsonandgrace.com. Hosted zone `Z029417718HFE5O4F6CLQ` | Registration `SUCCESSFUL`; status `ACTIVE`; contact verification `DONE` (no email to answer) |
 | Config | `infra/cdk/cdk.json` points at the domain and zone | `cdk synth` |
