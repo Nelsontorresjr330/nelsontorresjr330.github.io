@@ -7,10 +7,16 @@ Steps Claude already ran are listed under **Done** with what was checked, so not
 
 | # | Area | What | When | Time |
 |---|---|---|---|---|
-| 3 | Research | Request an MTSU HPC allocation with GPU access | In Progress (Nelson) | 5 min |
+| 8 | Research | Weeks 1–2 lesson: PyTorch tutorial and the week 1 script | Now (In Progress) | 4–6 hours over the two weeks |
+| 3 | Research | MTSU HPC (Babbage) access: requested, waiting on MTSU | Requested | Follow-up only |
 | 7 | Research | Download ABIDE II raw scans and preprocess with DPARSF | Weeks 13–16 | 1–2 days on the laptop (runs unattended) |
 
 Steps 1, 2, 4, 5 and 6 are done (see **Done**); the numbers are kept so references to them stay valid.
+
+**Where Project 1 stands (2026-11-25).** Decisions are made, the code repo and environment are set
+up, and ABIDE I (871 subjects, both pipelines) is downloaded. You are in weeks 1–2, learning
+PyTorch. Claude builds the first ABIDE baseline next. Babbage isn't needed before about week 9.
+The status table at the top of `PROJECT1_PLAN.md` is the one place this is kept current.
 
 The research plan these steps support is `/Users/nelsontorres/Desktop/research/contrastive-fmri/PROJECT1_PLAN.md`.
 
@@ -22,9 +28,28 @@ in `.nosync` (which iCloud skips), reached through the links `.venv` and `data`.
 ABIDE data must not be uploaded, and iCloud also breaks the environment (it hides files Python
 needs).
 
-### 3. MTSU HPC allocation (In Progress)
+### 8. Weeks 1–2: PyTorch foundations (In Progress)
 
-You are requesting it from MTSU. Ask for an account with GPU access. The laptop (M4 Max) covers
+The full guide is `lessons/README.md` in the research repo: read PyTorch's "Learn the Basics"
+tutorial (about 3 hours), run the week 1 script, read the three short files it uses, and try the
+four small experiments.
+
+```bash
+cd /Users/nelsontorres/Desktop/research/contrastive-fmri
+source .venv/bin/activate
+python lessons/week01_pytorch_basics.py
+```
+
+Expected: five short parts, then eight epochs whose validation balanced accuracy climbs from about
+0.33 to above 0.9, in a few seconds. Stop and send me the output if it errors, especially
+`No module named 'cfmri'` (the iCloud problem below). Done when you can explain each line of
+`train_one_epoch` in `src/cfmri/train.py`.
+
+### 3. MTSU HPC (Babbage) access (Requested)
+
+You requested it; MTSU hasn't granted it yet. Nothing to run. If there's no reply by mid-December,
+follow up with MTSU research computing, or ask Dr. Yang whether the lab has an allocation you can
+join. Ask for an account with GPU access. The laptop (M4 Max) covers
 weeks 1–8; the full experiment grid (5 seeds × 17 sites × ablations) needs the cluster from about
 week 9. When it is approved, send me the login host, the GPU partition name and any storage
 quota, and I will add the cluster steps here and to section 9 of the plan.
@@ -33,20 +58,20 @@ quota, and I will add the cluster steps here and to section 9 of the plan.
 
 ABIDE II has no preprocessed release, so it goes through the same DPARSF pipeline used for the ADNI
 project, with settings matched to PCP's DPARSF output from step 5 (MATLAB R2026a, DPABI and SPM12 are already installed under
-`~/Desktop/research/alzheimers-rsfmri-graph-theory/toolboxes`). I will write the download and
+`/Users/nelsontorres/Desktop/research/alzheimers-rsfmri-graph-theory/toolboxes`). I will write the download and
 batch scripts when we get there; the step for you will be starting the MATLAB batch and letting it
 run. About 1,100 scans at roughly 10–20 minutes each: 1–2 days with parallel jobs on the laptop,
 or hours on MTSU's cluster if it has MATLAB.
 
-## Done (2026-11-18)
+## Done (2026-11-18; nothing new through 2026-11-25)
 
 | Step | What was done | How it was checked |
 |---|---|---|
 | Runbook 1 | Website link on LinkedIn set to `https://nelsontorres.dev` | Nelson |
-| Runbook 4 | Python 3.12 venv in `contrastive-fmri/.venv`: torch 2.15, nilearn 0.14.1, scikit-learn 1.9.1 | `mps: True` (M4 Max GPU) |
-| Runbook 6 | Private repo `Nelsontorresjr330/contrastive-fmri` (`main` and `dev`), CI on every push and PR | CI green, 11 tests; week 1 lesson trains to 0.98 balanced accuracy |
-| Runbook 5 | NITRC account (Nelson; ABIDE's only requirement). ABIDE I CC200 downloaded by Claude for C-PAC and DPARSF into `data.nosync` (950 MB, not synced or committed). The NITRC zip in `~/Downloads/scripts` is the unrelated 2010 1000 Functional Connectomes preprocessing scripts and can be deleted | Both pipelines: 871 subjects (403 ASD, 468 TD), 20 site IDs (17 institutions), 77–316 time points × 200 ROIs |
 | Runbook 2 | Dr. Yang's five questions answered and recorded in section 9 of `PROJECT1_PLAN.md`: C-PAC main, DPARSF check and ABIDE II external test; LOSO primary; UCI HAR benchmark; no deadline; MTSU HPC | Nelson; plan updated |
+| Runbook 4 | Python 3.12 venv in `contrastive-fmri/.venv`: torch 2.15, nilearn 0.14.1, scikit-learn 1.9.1 | `mps: True` (M4 Max GPU) |
+| Runbook 5 | NITRC account (Nelson; ABIDE's only requirement). ABIDE I CC200 downloaded by Claude for C-PAC and DPARSF into `data.nosync` (950 MB, not synced or committed). The NITRC zip in `~/Downloads/scripts` is the unrelated 2010 1000 Functional Connectomes preprocessing scripts and can be deleted | Both pipelines: 871 subjects (403 ASD, 468 TD), 20 site IDs (17 institutions), 77–316 time points × 200 ROIs |
+| Runbook 6 | Private repo `Nelsontorresjr330/contrastive-fmri` (`main` and `dev`), CI on every push and PR | CI green, 11 tests; week 1 lesson trains to 0.98 balanced accuracy |
 | Domain | `nelsontorres.dev` registered in Route 53 until 2027-11-18, auto-renew and privacy protection on, same personal contact as nelsonandgrace.com. Hosted zone `Z029417718HFE5O4F6CLQ` | Registration `SUCCESSFUL`; status `ACTIVE`; contact verification `DONE` (no email to answer) |
 | Config | `infra/cdk/cdk.json` points at the domain and zone | `cdk synth` |
 | Deploy role | `Portfolio-DeployIdentity` stack: role `GitHubActions-Portfolio-Deploy`, trusted only by this repo's `dev` and `prod` environments | CloudFormation `CREATE_COMPLETE` |
